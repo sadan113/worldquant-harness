@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps({"alpha_id": alpha_id, "status": row["final_status"], "active_count": active_count}, ensure_ascii=False), flush=True)
                 continue
 
-            if args.check_before_submit and should_run_live_check(precheck):
+            if args.check_before_submit and should_run_live_check(precheck, force_live=True):
                 print(json.dumps({"event": "live_check_start", "alpha_id": alpha_id}, ensure_ascii=False), flush=True)
                 check = client.check_alpha_submission(alpha_id, max_polls=args.check_polls, interval=args.check_interval)
                 row["live_precheck"] = check
@@ -268,11 +268,13 @@ def is_precheck_blocked(precheck: dict[str, Any]) -> bool:
     )
 
 
-def should_run_live_check(precheck: dict[str, Any]) -> bool:
+def should_run_live_check(precheck: dict[str, Any], *, force_live: bool = False) -> bool:
     if not precheck:
         return True
     if is_precheck_blocked(precheck):
         return False
+    if force_live:
+        return True
     status = str(precheck.get("api_check_status") or "").lower()
     return status not in {"api_check_readable", "platform_active_check_readable"}
 

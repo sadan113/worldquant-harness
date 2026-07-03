@@ -147,6 +147,7 @@ class ModelCandidateDesignerAgent:
                 "rationale": row.get("rationale"),
                 "expected_low_corr_reason": row.get("expected_low_corr_reason"),
                 "source_fields": row.get("source_fields") or _fields(expression),
+                "provenance": row.get("provenance") or {"kind": str(row.get("source") or "generated_candidate")},
                 "mutation_strategy": row.get("mutation_strategy"),
                 "parent_alpha_ids": row.get("parent_alpha_ids") or [],
                 "risk_flags": row.get("risk_flags") or [],

@@ -151,12 +151,20 @@ def run_workflow(
         "mode": mode,
         "submit_guard": (
             "run/sync/forum/postmortem/presubmit-sequential never call submit; "
-            "submit requires explicit ids/count; run-submit requires explicit target_submissions"
+            "submit requires explicit ids/count; run-submit requires explicit target_submissions; "
+            "autopilot submits only when autopilot_submit is true"
         ),
         "canonical_entrypoint": "scripts/wq_agent_workflow.py",
-        "authoritative_status_file": str(paths.loop_status if mode in {"run-submit", "presubmit-sequential"} else paths.summary),
+        "authoritative_status_file": str(
+            paths.loop_status if mode in {"run-submit", "presubmit-sequential"} else paths.summary
+        ),
         "config": _config_dict(config),
     })
+
+    if mode == "autopilot":
+        from .wq_autopilot_controller import run_autopilot
+
+        return run_autopilot(config, paths, dependencies=dependencies, workflow_runner=run_workflow)
 
     platform_agent = PlatformSyncAgent(config, paths, dependencies=dependencies)
     community_agent = CommunityScoutAgent(config, paths)

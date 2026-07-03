@@ -141,9 +141,11 @@ def candidate_from_value(value: Any, source: str) -> dict[str, Any]:
             "rationale": value.get("rationale"),
             "expected_low_corr_reason": value.get("expected_low_corr_reason"),
             "source_fields": value.get("source_fields") or value.get("fields"),
+            "field_signature": value.get("field_signature"),
             "parent_alpha_ids": value.get("parent_alpha_ids") or [],
             "risk_flags": value.get("risk_flags") or [],
             "simulation_settings": candidate_settings_override(value),
+            "provenance": value.get("provenance") or value.get("source_run") or value.get("forum_evidence") or value.get("repair_evidence"),
             "candidate_meta": {
                 **(value.get("candidate_meta") or {}),
                 **{key: value.get(key) for key in ("alpha_id", "status", "source_family") if value.get(key) is not None},

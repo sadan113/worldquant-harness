@@ -18,7 +18,7 @@ from worldquant_harness.wq_agent_workflow import WQAgentWorkflowConfig, run_work
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the role-based WorldQuant alpha workflow")
     sub = parser.add_subparsers(dest="mode", required=True)
-    for mode in ("sync", "forum", "run", "postmortem", "submit", "run-submit", "presubmit-sequential"):
+    for mode in ("sync", "forum", "run", "postmortem", "submit", "run-submit", "presubmit-sequential", "autopilot"):
         _add_common_args(sub.add_parser(mode, help=f"{mode} workflow mode"))
 
     args = parser.parse_args(argv)
@@ -69,6 +69,9 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--no-platform-candidates", action="store_true", help="Do not fill candidate pools from UNSUBMITTED platform memory")
     parser.add_argument("--target-submissions", type=int, default=0)
     parser.add_argument("--target-ready", type=int, default=0)
+    parser.add_argument("--target-active", type=int, default=0, help="Autopilot active target; requires --submit for real submissions")
+    parser.add_argument("--submit", action="store_true", help="Allow autopilot mode to run the real submit loop")
+    parser.add_argument("--resume", action="store_true", help="Let autopilot include existing local artifacts in its state inventory")
     parser.add_argument("--max-total-simulations", type=int, default=2000)
     parser.add_argument("--cycle-candidate-count", type=int, default=40)
     parser.add_argument("--max-cycles", type=int, default=50)
@@ -145,7 +148,7 @@ def _config_from_args(args: argparse.Namespace) -> WQAgentWorkflowConfig:
         submission_policy_file=_resolve_path(args.submission_policy_file) if args.submission_policy_file else None,
         legal_inputs_file=_resolve_path(args.legal_inputs) if args.legal_inputs else None,
         strict_legal_inputs=not args.no_strict_legal_inputs,
-        enrich_pnl=bool(args.enrich_pnl or (args.mode == "run-submit" and not args.no_pnl_enrichment)),
+        enrich_pnl=bool(args.enrich_pnl or (args.mode in {"run-submit", "autopilot"} and not args.no_pnl_enrichment and (args.mode != "autopilot" or args.submit))),
         pnl_enrichment_limit=args.pnl_enrichment_limit,
         pnl_min_stability_score=args.pnl_min_stability_score,
         post_submit_review_enabled=not args.no_post_submit_review,
@@ -155,6 +158,9 @@ def _config_from_args(args: argparse.Namespace) -> WQAgentWorkflowConfig:
         iteration_audit_enabled=not args.no_iteration_audit,
         audit_history_limit=max(0, args.audit_history_limit),
         audit_include_expressions=bool(args.audit_include_expressions),
+        autopilot_submit=bool(args.submit),
+        autopilot_resume=bool(args.resume),
+        target_active=args.target_active,
     )
 
 

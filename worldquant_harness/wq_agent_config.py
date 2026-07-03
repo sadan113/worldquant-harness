@@ -76,6 +76,9 @@ class WQAgentWorkflowConfig:
     iteration_audit_enabled: bool = True
     audit_history_limit: int = 20
     audit_include_expressions: bool = False
+    autopilot_submit: bool = False
+    autopilot_resume: bool = False
+    target_active: int = 0
 
 
 @dataclass
@@ -112,6 +115,12 @@ class WorkflowPaths:
     iteration_audit: Path
     iteration_audit_summary: Path
     iteration_audit_markdown: Path
+    autopilot_state: Path
+    autopilot_events: Path
+    autopilot_policy: Path
+    autopilot_branch_plan: Path
+    autopilot_decisions: Path
+    autopilot_candidates: Path
     summary: Path
 
     @classmethod
@@ -149,5 +158,11 @@ class WorkflowPaths:
             iteration_audit=output_dir / "iteration_audit.jsonl",
             iteration_audit_summary=output_dir / "iteration_audit_summary.json",
             iteration_audit_markdown=output_dir / "iteration_audit.md",
+            autopilot_state=output_dir / "autopilot_state.json",
+            autopilot_events=output_dir / "autopilot_events.jsonl",
+            autopilot_policy=output_dir / "autopilot_policy.json",
+            autopilot_branch_plan=output_dir / "autopilot_branch_plan.json",
+            autopilot_decisions=output_dir / "autopilot_decisions.md",
+            autopilot_candidates=output_dir / "autopilot_candidates.jsonl",
             summary=output_dir / "summary.json",
         )
