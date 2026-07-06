@@ -36,7 +36,9 @@ Agent generates candidates -> harness records, gates, evaluates, remembers, and 
 
 worldquant-harness is not a one-shot alpha generator. It is an explicit-submit, memory-driven Alpha-GPT-style research harness for WorldQuant-oriented alpha workflows.
 
-The agent can propose hypotheses, candidate specs, batches, and reviews. The harness owns the lifecycle: candidate identity, sandbox execution, no-submit gates, review queues, rejection reasons, historical memory, profile evolution, and the explicit boundary before any real WQ BRAIN action.
+The current focus is the skill system around that harness: forum experience, local submit failures, repair queues, and manual candidate notes are distilled into typed skills before the agent is allowed to generate or submit again.
+
+The agent can propose hypotheses, candidate specs, batches, and reviews. The harness owns the lifecycle: candidate identity, sandbox execution, no-submit gates, review queues, rejection reasons, skill memory, historical memory, profile evolution, and the explicit boundary before any real WQ BRAIN action.
 
 中文摘要：本项目不是一次性的 alpha 生成器，而是一个带显式提交边界、可复盘记忆、可审阅工件的 WorldQuant 风格研究 harness。Agent 可以提出假设和候选，但真实提交必须由人工明确选择。
 
@@ -55,6 +57,41 @@ worldquant-harness treats factor mining as a controlled research loop:
 | Submission boundaries become ambiguous | Public demo, sandbox, presubmit, check-only, and real submit are separated |
 | Agent context is fragile | Notes, events, review queues, and profile patches are persisted |
 | Public releases can leak private work | Demo artifacts and visual packs are synthetic or sanitized |
+
+## Skill System and Effect Comparison
+
+The main recent change is not another prompt template. The project now treats WQ forum experience, local failure records, and submit reviews as a structured skill system:
+
+<p align="center">
+  <img src="docs/images/skill-effect-comparison.svg" width="920" alt="Skill system effect comparison" />
+</p>
+
+| Before the skill split | After the skill split |
+|:--|:--|
+| Ready and near-pass rows could dominate the next candidate pool | Old ready queues can be explicitly ignored; ACTIVE inventory is used only as a correlation/crowding boundary |
+| Failures were too coarse: "near pass", "self-corr", or "platform fail" | Failures are routed into concrete action buckets: clone blocker, family shift, concentration repair, metric overlay, pending-check gate, duplicate block |
+| Similar formulas could keep consuming submit budget after one family became ACTIVE | 0.97+ clone families are blocked and the generator must change field family, operator skeleton, or source family |
+| Platform PASS and strict numeric related-record cutoffs were easy to mix together | The latest policy records `platform_result` and numeric related-record value separately |
+| Iteration records were hard to compare across runs | Each run can write what changed, result, exact blocker, and next repair action |
+
+The clearest public-safe comparison from local records:
+
+| Run style | Candidate source | Public-safe outcome | Main lesson |
+|:--|:--|:--|:--|
+| Representative blocked near-miss reviews | Existing near-pass / ready-style families | 7 submit attempts, 0 ACTIVE | Metrics were close, but self-correlation and thin sub-universe/weight-distribution issues still blocked submission |
+| Fresh skill-routed forum/experience run | Forum recipe memory + failure taxonomy + manual JSONL, old ready ignored | 5/5 ACTIVE, with 3 strict submits and 2 platform-PASS relaxed submits | Skill routing helped abandon clone families and shift toward structurally different EPS/dividend, disclosure-missingness, and value-quality branches |
+
+This is a workflow effectiveness signal, not an investment-performance claim. Exact alpha expressions, raw platform exports, and unsanitized forum content are intentionally withheld.
+
+<p align="center">
+  <img src="docs/images/submit5-case-study.svg" width="920" alt="Sanitized fresh submit five active case study" />
+</p>
+
+<p align="center">
+  <img src="docs/images/forum-to-skill-memory.svg" width="920" alt="Forum experience distilled into skill memory" />
+</p>
+
+The candidate record shape is intentionally explicit. A useful candidate should carry `expression`, `simulation_settings`, `source_family`, `field_signature`, `tag`, `rationale`, and source evidence such as run, forum, or repair provenance.
 
 ## Architecture
 
@@ -117,50 +154,47 @@ It writes hypothesis, placeholder template, candidate spec, local validation,
 review queue, reflection memory, profile patch, and submit-evidence artifacts
 under `reports/examples/alpha_gpt_demo/`.
 
-## 2026-07 Update / 本次更新
+## Skill Taxonomy and Iteration Records
 
-This branch adds the first full Alpha-GPT-style memory workflow. The important change is architectural: research state now moves through explicit semantic records instead of remaining as loose prompt text.
+The 2026-07 iteration turns loose forum comments and submit failures into reusable skills. The important change is operational: each failed attempt should explain why it failed and which repair route is allowed next.
 
-本次更新的重点是把研究过程结构化：从研究假设、候选生成、审阅决策、失败记忆、profile patch 到显式提交证据，每一步都有可审计 artifact。
+本次更新的重点不是简单增加 prompt，而是把论坛经验、失败记录和实际提交复盘拆成可执行 skill。每次微调都需要留下：改了什么、结果怎样、具体失败原因是什么、下一步应该换参数还是换 family。
 
-| Area | What changed |
+<p align="center">
+  <img src="docs/images/failure-taxonomy-map.svg" width="920" alt="Fine-grained failure taxonomy and repair map" />
+</p>
+
+| Skill layer | What it controls |
 |:--|:--|
-| Alpha-GPT harness | Adds `hypotheses.jsonl`, `alpha_gpt_candidate_specs.jsonl`, `review_decisions.jsonl`, `reflection_records.jsonl`, and `submit_evidence.json` to the public contract path |
-| Community skill memory | Converts WQ Community triage and forum memory into reusable gates plus refined failure-action repair routes |
-| WQ alpha search memory | Merges local simulation/check/submit artifacts into a trajectory ledger, family scores, near-pass repair queue, and submit/check target queues |
-| Explicit submit loop | Adds a local candidate-file driven simulation/submit script; it still requires credentials and explicit non-`--no-submit` execution |
-| Iteration audit | Writes `iteration_audit.jsonl`, `iteration_audit_summary.json`, and `iteration_audit.md` by default so each run explains tweaks, results, failure causes, and next actions |
-| Code review cleanup | Consolidates JSON artifact helpers for the new memory workflow and tightens configuration-driven scoring behavior |
+| `community::*` compatibility routes | Keep older near-pass, template, operator, and submit-gate workflows readable while routing them to finer skills |
+| `community_failure::*` failure actions | Split failures into metric overlay repair, correlation family shift, direct-template clone blocker, concentration/coverage repair, turnover/density repair, pending-check gate, duplicate block, and platform/unit probes |
+| `near_sc_cutoff_settings_repair` | Use settings grids only when a strong parent is near the self-correlation cutoff; stop when similarity is structural |
+| `top5_high_score_low_corr_submit` | Rank explicit submit/check targets by WQ score, eligibility, and correlation risk instead of raw headline Sharpe |
+| Candidate provenance fields | Require `source_family`, `field_signature`, `tag`, `rationale`, and source evidence so the next run can audit why a candidate exists |
 
-Key reusable skills / 关键 skills:
+<p align="center">
+  <img src="docs/images/fresh-submit-loop.svg" width="920" alt="Fresh submit loop with active correlation boundary" />
+</p>
 
-| Skill | Role |
-|:--|:--|
-| `community::near_pass_repair` | Backward-compatible near-pass route; now points into metric overlay and correlation family-shift repair buckets |
-| `community::alpha_template_transform` | Backward-compatible template route; now points into the direct-template clone blocker |
-| `community::operation_attribution` | Backward-compatible operator route; now points into turnover/density, unit probe, and concentration repair buckets |
-| `community::submission_gate` | Backward-compatible submit gate; now points into stale-check, duplicate, and similarity-blocking buckets |
-| `community_failure::*` | Refined failure-action skills distilled from forum/submission records: metric near-pass overlay repair, correlation family shift, template clone blocker, low-coverage/concentration repair, turnover/density repair, pending-check gating, duplicate blocking, and platform/unit probes |
-| `near_sc_cutoff_settings_repair` | Freeze a strong parent expression and vary neutralization/decay/truncation near SELF_CORRELATION cutoff |
-| `top5_high_score_low_corr_submit` | Rank explicit submit/check work by WQ score, eligibility, and correlation risk |
+The new iteration audit layer writes `iteration_audit.jsonl`, `iteration_audit_summary.json`, and `iteration_audit.md`. The default Markdown/JSONL reports withhold full expressions and use hashes, field signatures, operators, metrics, failure classes, and next actions instead.
 
-Update commits on this branch:
+Code structure was also tightened to support this loop: shared artifact I/O and record utilities are used across the WQ workflow, repair template libraries were split by failure kind, and candidate/repair dedupe now preserves first-wins key semantics through common helpers.
 
-| Commit | Purpose |
-|:--|:--|
-| `485a58d feat: add alpha-gpt harness memory workflow` | Adds the Alpha-GPT semantic artifacts, community skill memory, alpha search memory, docs, scripts, and tests |
-| `chore: document and tidy alpha-gpt harness workflow` | Documents the new design in this README and performs focused review cleanup before pushing to GitHub |
-
-For details, see [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md), [Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md), and [WQ Workflow](docs/WQ_WORKFLOW.md).
+For details, see [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md), [Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md), [WQ Workflow](docs/WQ_WORKFLOW.md), and [Redundancy Module Audit](docs/WQ_REDUNDANCY_MODULE_AUDIT.md).
 
 ## Visual Pack
 
-The visual pack is generated from public-safe artifacts. It is meant to explain the harness rather than disclose private research.
+The visual pack combines generated public-demo artifacts with curated, sanitized skill/effect visuals. It is meant to explain the harness rather than disclose private research.
 
 | View | What it shows |
 |:--|:--|
 | [Overview](docs/images/worldquant-harness-overview.svg) | Human goal -> agent -> harness -> memory -> review |
 | [Architecture](docs/images/worldquant-harness-architecture.svg) | Agent interface, harness control plane, memory feedback, and submit boundary |
+| [Skill effect comparison](docs/images/skill-effect-comparison.svg) | Representative blocked near-miss batches vs the later skill-routed 5/5 active case |
+| [Forum to skill memory](docs/images/forum-to-skill-memory.svg) | Forum notes, local submit history, and repair records distilled into typed skills |
+| [Failure taxonomy](docs/images/failure-taxonomy-map.svg) | Self-correlation, concentration, weak metrics, platform mismatch, and repair routes |
+| [Fresh submit loop](docs/images/fresh-submit-loop.svg) | Old ready ignored, fresh candidates generated, active inventory used as correlation boundary |
+| [Submit5 case study](docs/images/submit5-case-study.svg) | Sanitized 5 ACTIVE run summary without expressions or raw platform exports |
 | [Artifact lifecycle](docs/images/harness-artifact-lifecycle.svg) | Candidate specs, simulations, review queues, and memory |
 | [Public demo trace](docs/images/public-demo-trace.svg) | Candidate movement through ready and rejected states |
 | [Memory feedback](docs/images/memory-feedback-graph.svg) | How blockers become future constraints |

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-labelledby="title desc">
+<title id="title">Fresh submit loop with correlation boundary</title>
+<desc id="desc">A fresh candidate loop clears stale ready records, generates from evidence, checks correlation, submits explicitly, and writes detailed records.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L0,6 L9,3 z" fill="#5c6670"/>
+  </marker>
+  <style>
+    text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #17202a; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; }
+    .subtitle { font-size: 15px; fill: #5c6670; }
+    .label { font-size: 15px; font-weight: 700; }
+    .body { font-size: 13px; fill: #5c6670; }
+    .tiny { font-size: 12px; fill: #5c6670; }
+    .metric { font-size: 20px; font-weight: 700; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="48" y="54" class="title">Fresh submit loop: old ready is not the source of truth</text>
+<text x="48" y="82" class="subtitle">Existing ACTIVE inventory is used as a crowding boundary while new candidates come from distilled evidence.</text>
+
+<rect x="62" y="150" width="160" height="110" rx="8" fill="#fdecec" stroke="#d64545" stroke-width="2"/>
+<text x="78" y="180" class="label">Clear stale ready</text>
+<text x="78" y="206" class="body">Ignore old presubmit</text>
+<text x="78" y="224" class="body">ready queues for</text>
+<text x="78" y="242" class="body">candidate sourcing</text>
+
+<rect x="268" y="150" width="160" height="110" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="2"/>
+<text x="284" y="180" class="label">Generate fresh</text>
+<text x="284" y="206" class="body">forum recipes,</text>
+<text x="284" y="224" class="body">repair queue,</text>
+<text x="284" y="242" class="body">manual JSONL</text>
+
+<rect x="474" y="150" width="160" height="110" rx="8" fill="#f7f9fb" stroke="#d8dde3" stroke-width="2"/>
+<text x="490" y="180" class="label">Simulate batch</text>
+<text x="490" y="206" class="body">record settings,</text>
+<text x="490" y="224" class="body">metrics, checks,</text>
+<text x="490" y="242" class="body">micro-tweaks</text>
+
+<rect x="680" y="150" width="160" height="110" rx="8" fill="#fff4df" stroke="#c47f17" stroke-width="2"/>
+<text x="696" y="180" class="label">Gate and compare</text>
+<text x="696" y="206" class="body">fitness, turnover,</text>
+<text x="696" y="224" class="body">self-correlation,</text>
+<text x="696" y="242" class="body">platform result</text>
+
+<rect x="886" y="150" width="160" height="110" rx="8" fill="#e8f6ee" stroke="#1f9d55" stroke-width="2"/>
+<text x="902" y="180" class="label">Explicit submit</text>
+<text x="902" y="206" class="body">only selected,</text>
+<text x="902" y="224" class="body">credentialed,</text>
+<text x="902" y="242" class="body">audited actions</text>
+
+<line x1="222" y1="205" x2="268" y2="205" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="428" y1="205" x2="474" y2="205" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="634" y1="205" x2="680" y2="205" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="840" y1="205" x2="886" y2="205" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+<rect x="142" y="342" width="250" height="94" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="158" y="372" class="label">ACTIVE inventory</text>
+<text x="158" y="398" class="body">used only for correlation and</text>
+<text x="158" y="416" class="body">crowding pressure checks</text>
+
+<rect x="470" y="342" width="250" height="94" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="486" y="372" class="label">Iteration audit</text>
+<text x="486" y="398" class="body">what changed, result, blocker,</text>
+<text x="486" y="416" class="body">and next repair action</text>
+
+<rect x="798" y="342" width="250" height="94" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="814" y="372" class="label">Memory feedback</text>
+<text x="814" y="398" class="body">active family, clone family,</text>
+<text x="814" y="416" class="body">near-pass policy records</text>
+
+<path d="M923 436 C900 508, 318 508, 298 436" fill="none" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M267 342 C280 302, 332 292, 348 260" fill="none" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M595 342 C600 308, 594 292, 570 260" fill="none" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M923 342 C920 308, 946 292, 960 260" fill="none" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+<rect x="116" y="512" width="244" height="58" rx="8" fill="#eaf1ff" stroke="#2f6fed"/>
+<text x="132" y="536" class="body">Candidate source</text>
+<text x="132" y="560" class="metric">fresh evidence</text>
+
+<rect x="438" y="512" width="244" height="58" rx="8" fill="#fff4df" stroke="#c47f17"/>
+<text x="454" y="536" class="body">Main reject pressure</text>
+<text x="454" y="560" class="metric">self-correlation</text>
+
+<rect x="760" y="512" width="244" height="58" rx="8" fill="#e8f6ee" stroke="#1f9d55"/>
+<text x="776" y="536" class="body">Submit decision</text>
+<text x="776" y="560" class="metric">explicit and logged</text>
+
+<text x="48" y="600" class="tiny">What this proves: fresh generation and active-correlation review prevent stale ready queues from consuming submit budget.</text>
+</svg>

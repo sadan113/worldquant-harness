@@ -52,6 +52,41 @@ worldquant-harness 把因子挖掘视为受控研究循环：
 | 智能体上下文易丢失 | 笔记、事件、复盘队列、画像补丁持久化 |
 | 开源发布可能泄露私有研究 | 演示产物和视觉材料使用合成或脱敏内容 |
 
+## Skill 体系和效果对比
+
+这次主要更新不是再加一个 prompt 模板，而是把 WQ 论坛经验、本地失败记录、repair queue 和手写候选说明整理成可执行的 skill 体系。智能体在生成或提交前，先要经过这些 skill 的分类、阻塞和修复路线约束。
+
+<p align="center">
+  <img src="docs/images/skill-effect-comparison.svg" width="920" alt="Skill 体系效果对比" />
+</p>
+
+| 旧流程问题 | 新 skill 体系 |
+|:--|:--|
+| ready 和 near-pass 记录容易直接变成下一轮候选池 | 可以显式忽略旧 ready；已有 ACTIVE 只作为相关性和拥挤度边界 |
+| 失败原因维度较粗，常停在 near pass、self-corr、platform fail | 拆成 clone blocker、family shift、concentration repair、metric overlay、pending-check gate、duplicate block 等动作桶 |
+| 某个 family 变成 ACTIVE 后，近似变体仍可能继续消耗提交额度 | 对 0.97+ clone family 直接阻塞，要求换 field family、operator skeleton 或 source family |
+| platform PASS 和严格 numeric related-record cutoff 容易混在一起 | 单独记录 `platform_result` 和 numeric related-record value |
+| 每次微调难以横向比较 | 记录每次改了什么、结果如何、具体 blocker、下一步 repair 动作 |
+
+本地记录里最适合公开表达的对比是：
+
+| 流程 | 候选来源 | 脱敏结果 | 经验 |
+|:--|:--|:--|:--|
+| 代表性的 near-miss 阻塞提交复盘 | 旧 near-pass / ready 风格 family | 7 次提交尝试，0 ACTIVE | 指标接近，但 self-correlation、sub-universe margin、weight distribution 仍然阻塞 |
+| fresh skill-routed forum/experience run | 论坛 recipe memory + failure taxonomy + 手写 JSONL，忽略旧 ready | 5/5 ACTIVE，其中 3 个 strict submit，2 个 platform-PASS relaxed submit | skill 路由帮助放弃 clone family，并切换到 EPS/dividend、披露缺失、value-quality 等结构差异更大的方向 |
+
+这只是流程有效性信号，不是投资收益承诺。README 不公开 alpha 表达式、原始平台导出或未脱敏论坛内容。
+
+<p align="center">
+  <img src="docs/images/submit5-case-study.svg" width="920" alt="脱敏 submit5 active 案例" />
+</p>
+
+<p align="center">
+  <img src="docs/images/forum-to-skill-memory.svg" width="920" alt="论坛经验蒸馏为 skill memory" />
+</p>
+
+候选记录也被明确约束：一个可审计候选最好带有 `expression`、`simulation_settings`、`source_family`、`field_signature`、`tag`、`rationale`，以及 run、forum 或 repair 来源依据。
+
 ## 架构
 
 <p align="center">
@@ -93,14 +128,43 @@ python scripts/run_public_harness_eval.py --output-root reports/public_harness_e
 | `eval_summary.json` | 框架评分和门控决策 |
 | `evolution_result.json` | 下一轮画像候选 |
 
+## Skill 分类和迭代记录
+
+2026-07 之后的核心变化是把松散的论坛评论和提交失败拆成可复用 skill。每个失败都应该回答两个问题：为什么失败，下一步允许怎么修。
+
+<p align="center">
+  <img src="docs/images/failure-taxonomy-map.svg" width="920" alt="细粒度失败分类和修复路线" />
+</p>
+
+| Skill 层 | 控制内容 |
+|:--|:--|
+| `community::*` 兼容入口 | 保留旧的 near-pass、template、operator、submit-gate 路线，同时把它们转到更细的 skill |
+| `community_failure::*` 失败动作 | 拆分 metric overlay repair、correlation family shift、direct-template clone blocker、concentration/coverage repair、turnover/density repair、pending-check gate、duplicate block、platform/unit probe |
+| `near_sc_cutoff_settings_repair` | 只在强 parent 接近 self-correlation cutoff 时做 settings grid；如果相似性是结构性的就停止调参 |
+| `top5_high_score_low_corr_submit` | 提交/检查目标按 WQ score、eligibility、correlation risk 排序，而不是只看 Sharpe |
+| 候选 provenance 字段 | 要求 `source_family`、`field_signature`、`tag`、`rationale` 和来源证据，方便下一轮审计 |
+
+<p align="center">
+  <img src="docs/images/fresh-submit-loop.svg" width="920" alt="带 ACTIVE 相关性边界的 fresh submit loop" />
+</p>
+
+新的 iteration audit 默认写出 `iteration_audit.jsonl`、`iteration_audit_summary.json` 和 `iteration_audit.md`。默认报告不暴露完整表达式，而是使用表达式 hash、字段签名、算子、指标、失败类型和下一步动作，方便公开说明方法论，也方便本地继续排查提交体系是否有效。
+
+代码结构也围绕这个流程做了收敛：artifact I/O 和 record utilities 复用到 WQ workflow，repair template 按失败类型拆分，候选/repair 去重的 first-wins key 语义进入通用 helper。详见 [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md)、[Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md)、[WQ Workflow](docs/WQ_WORKFLOW.md) 和 [冗余模块审计](docs/WQ_REDUNDANCY_MODULE_AUDIT.md)。
+
 ## 可视化材料
 
-可视化材料来自公开安全产物。它用于解释约束框架，不披露私有研究。
+可视化材料由 public demo 生成图和脱敏的 skill/effect 静态图组成。它用于解释约束框架，不披露私有研究。
 
 | 视图 | 内容 |
 |:--|:--|
 | [概览](docs/images/worldquant-harness-overview.svg) | 人工目标 -> 智能体 -> 约束框架 -> 记忆 -> 复盘 |
 | [架构](docs/images/worldquant-harness-architecture.zh-CN.svg) | 智能体入口、框架控制面、记忆反馈、提交边界 |
+| [Skill 效果对比](docs/images/skill-effect-comparison.svg) | 代表性 near-miss 阻塞批次和后续 skill-routed 5/5 active 案例对比 |
+| [论坛到 skill memory](docs/images/forum-to-skill-memory.svg) | 论坛笔记、本地提交历史、repair 记录如何蒸馏成 typed skills |
+| [失败分类](docs/images/failure-taxonomy-map.svg) | self-correlation、concentration、weak metrics、platform mismatch 和修复路线 |
+| [Fresh submit loop](docs/images/fresh-submit-loop.svg) | 忽略旧 ready，重新生成候选，已有 ACTIVE 只作为相关性边界 |
+| [Submit5 案例](docs/images/submit5-case-study.svg) | 不公开表达式和原始平台导出的 5 ACTIVE 脱敏案例 |
 | [产物生命周期](docs/images/harness-artifact-lifecycle.svg) | 候选规格、模拟结果、复盘队列、记忆 |
 | [公开演示轨迹](docs/images/public-demo-trace.svg) | 候选在就绪和拒绝状态间流转 |
 | [记忆反馈](docs/images/memory-feedback-graph.svg) | 阻塞项如何变成下一轮约束 |
