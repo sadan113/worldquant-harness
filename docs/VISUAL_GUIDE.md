@@ -1,6 +1,6 @@
 # worldquant-harness Visual Guide
 
-This guide is generated from public harness demo artifacts. It is designed as the fastest path for a new reader to understand worldquant-harness as an agent research harness with memory feedback.
+This guide combines generated public-demo visuals with curated public-safe skill/effect visuals. It is designed as the fastest path for a new reader to understand worldquant-harness as an agent research harness with memory feedback, forum-derived skill memory, and explicit submit boundaries.
 
 ## Start Here
 
@@ -13,6 +13,36 @@ What this proves: worldquant-harness is a reproducible loop around agent researc
 ![worldquant-harness architecture](images/worldquant-harness-architecture.svg)
 
 What this proves: agent entrypoints, harness gates, memory feedback, and the credentialed submit boundary are separate layers.
+
+## Skill System Effect
+
+![Skill system effect comparison](images/skill-effect-comparison.svg)
+
+What this proves: the major recent change is the skill taxonomy and its measured effect on submit behavior. Representative blocked near-miss reviews are compared with a later fresh skill-routed run, without exposing alpha expressions.
+
+## Forum To Skill Memory
+
+![Forum to skill memory](images/forum-to-skill-memory.svg)
+
+What this proves: forum notes, local submit history, manual candidates, and repair records are classified into reusable skill memory before they drive generation.
+
+## Failure Taxonomy
+
+![Failure taxonomy map](images/failure-taxonomy-map.svg)
+
+What this proves: self-correlation, clone, concentration, weak metric, platform mismatch, and unit/operator issues imply different repair actions.
+
+## Fresh Submit Loop
+
+![Fresh submit loop](images/fresh-submit-loop.svg)
+
+What this proves: old ready rows are not treated as the source of truth; fresh candidates are generated from evidence while ACTIVE inventory is used as a correlation boundary.
+
+## Submit5 Case Study
+
+![Submit5 case study](images/submit5-case-study.svg)
+
+What this proves: a sanitized 5 ACTIVE run can be shown as workflow evidence while withholding alpha expressions, raw platform exports, and unsanitized forum content.
 
 ## Artifact Lifecycle
 
@@ -78,8 +108,10 @@ python scripts/wq_alpha_quality_review.py `
   --no-platform `
   --no-profile-candidate `
   --output-dir reports/public_harness_demo/quality_review
-python scripts/build_public_visual_pack.py --source reports/public_harness_demo --output-dir docs/images --report docs/VISUAL_GUIDE.md
+python scripts/build_public_visual_pack.py --source reports/public_harness_demo --output-dir docs/images --report reports/public_harness_demo/generated_visual_guide.md
 ```
+
+The public-demo command regenerates the demo-derived visuals. The skill/effect visuals in this guide are curated static SVGs because their source evidence comes from sanitized local submit reviews and postmortems that should not be published verbatim.
 
 ## Artifact To Visual Map
 
@@ -94,6 +126,9 @@ python scripts/build_public_visual_pack.py --source reports/public_harness_demo 
 | `efficiency_summary.json` | candidate_uid funnel and source-family leaderboards |
 | `quality_review/summary.json` | period quality dashboard and self-correlation pressure |
 | `quality_review/recommended_directions.json` | next synthesis direction callouts |
+| Sanitized submit reviews | skill effect comparison and submit5 case study |
+| Iteration audit summaries | failure taxonomy, tweak effect, and next-action callouts |
+| Community skill memory records | forum-to-skill-memory routing and skill taxonomy |
 | `SECURITY.md`, `.gitignore`, release checklist | submit boundary and release boundary |
 
 ## Current Artifact Availability

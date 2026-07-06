@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+<title id="title">Sanitized fresh submit five active case study</title>
+<desc id="desc">A sanitized case study shows five active results from fresh forum and experience driven generation without exposing alpha expressions.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L0,6 L9,3 z" fill="#5c6670"/>
+  </marker>
+  <style>
+    text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #17202a; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; }
+    .subtitle { font-size: 15px; fill: #5c6670; }
+    .label { font-size: 15px; font-weight: 700; }
+    .body { font-size: 13px; fill: #5c6670; }
+    .tiny { font-size: 12px; fill: #5c6670; }
+    .metric { font-size: 20px; font-weight: 700; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="48" y="54" class="title">Fresh forum/experience run: 5 ACTIVE, expressions withheld</text>
+<text x="48" y="82" class="subtitle">The public case study shows the workflow and lessons, not proprietary alpha code or raw platform exports.</text>
+
+<rect x="60" y="136" width="210" height="110" rx="8" fill="#eaf1ff" stroke="#2f6fed" stroke-width="2"/>
+<text x="78" y="168" class="label">Fresh evidence pool</text>
+<text x="78" y="194" class="body">forum recipes, local failures,</text>
+<text x="78" y="212" class="body">repair queue, manual notes</text>
+
+<rect x="330" y="136" width="210" height="110" rx="8" fill="#f7f9fb" stroke="#d8dde3" stroke-width="2"/>
+<text x="348" y="168" class="label">Batch exploration</text>
+<text x="348" y="194" class="body">family shifts after clones,</text>
+<text x="348" y="212" class="body">recorded micro-tweaks</text>
+
+<rect x="600" y="136" width="210" height="110" rx="8" fill="#fff4df" stroke="#c47f17" stroke-width="2"/>
+<text x="618" y="168" class="label">Submit gates</text>
+<text x="618" y="194" class="body">metric thresholds, platform</text>
+<text x="618" y="212" class="body">checks, self-corr boundary</text>
+
+<rect x="870" y="136" width="210" height="110" rx="8" fill="#e8f6ee" stroke="#1f9d55" stroke-width="2"/>
+<text x="888" y="168" class="label">Outcome</text>
+<text x="888" y="201" class="metric">5 / 5 ACTIVE</text>
+<text x="888" y="224" class="tiny">sanitized validation case</text>
+
+<line x1="270" y1="191" x2="330" y2="191" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="540" y1="191" x2="600" y2="191" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="810" y1="191" x2="870" y2="191" stroke="#5c6670" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+<rect x="86" y="312" width="202" height="82" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="104" y="340" class="body">Strict submit path</text>
+<text x="104" y="370" class="metric">3 active</text>
+
+<rect x="330" y="312" width="202" height="82" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="348" y="340" class="body">Platform PASS relaxed</text>
+<text x="348" y="370" class="metric">2 active</text>
+
+<rect x="574" y="312" width="202" height="82" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="592" y="340" class="body">Best low-overlap branch</text>
+<text x="592" y="370" class="metric">EPS + dividend</text>
+
+<rect x="818" y="312" width="202" height="82" rx="8" fill="#f7f9fb" stroke="#d8dde3"/>
+<text x="836" y="340" class="body">Main blocker avoided</text>
+<text x="836" y="370" class="metric">clone families</text>
+
+<rect x="64" y="456" width="300" height="92" rx="8" fill="#eaf1ff" stroke="#2f6fed"/>
+<text x="84" y="486" class="label">What worked</text>
+<text x="84" y="512" class="body">disclosure missingness, value quality,</text>
+<text x="84" y="530" class="body">actual EPS/dividend, liability context</text>
+
+<rect x="410" y="456" width="300" height="92" rx="8" fill="#fff4df" stroke="#c47f17"/>
+<text x="430" y="486" class="label">What saturated</text>
+<text x="430" y="512" class="body">direct book/sales variants and analyst</text>
+<text x="430" y="530" class="body">revision anti-momentum clone families</text>
+
+<rect x="756" y="456" width="300" height="92" rx="8" fill="#e8f6ee" stroke="#1f9d55"/>
+<text x="776" y="486" class="label">Next policy</text>
+<text x="776" y="512" class="body">record platform result and numeric</text>
+<text x="776" y="530" class="body">related value as separate evidence</text>
+
+<text x="48" y="600" class="tiny">No alpha expressions, raw platform screenshots, credentials, or unsanitized forum content are included in this public visual.</text>
+<text x="48" y="622" class="tiny">What this proves: the harness can use community-derived memory while still keeping public release artifacts sanitized.</text>
+</svg>
