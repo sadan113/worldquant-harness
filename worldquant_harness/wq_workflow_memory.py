@@ -74,6 +74,7 @@ class MemoryContextBuilder:
         active_inventory = active_inventory or {"active": []}
         community_context = _community_context_for_config(self.config)
         community_skills = community_context.skill_summary(limit=12) if community_context else []
+        agent_memory = self._agent_memory_packet()
         context = {
             "created_at": _now(),
             "settings": _settings(self.config),
@@ -87,6 +88,7 @@ class MemoryContextBuilder:
             "ledger_failures": _summarize_rows(self._ledger_rows(["self_corr_fail", "prod_corr_fail", "weak", "invalid"], 40), limit=40),
             "ledger_near_miss": _summarize_rows(self._ledger_rows(["pre_submit_pass", "correlation_pending"], 20), limit=20),
             "post_submit_lessons": _summarize_rows(_latest_post_submit_lessons(limit=40), limit=40),
+            "agent_memory_v2": agent_memory,
             "current_near_miss": _summarize_rows(
                 [row for row in _read_jsonl(self.paths.review_queue) if row.get("triage_bucket") == NEAR_MISS_REPAIR],
                 limit=20,
@@ -98,6 +100,7 @@ class MemoryContextBuilder:
                 "Treat community skills as conservative gates and repair routes, not direct formula sources.",
                 "Transform public templates through field-family/operator-family changes and orthogonal overlays before simulation.",
                 "After self-correlation failures, change field or operator family, not only windows.",
+                "Treat canonical memory recommendations as evidence-scoped constraints; platform submit evidence outranks forum heuristics.",
             ],
         }
         _write_json(self.paths.memory_context, context)
@@ -108,12 +111,42 @@ class MemoryContextBuilder:
             "active": len(context["active"]),
             "ledger_failures": len(context["ledger_failures"]),
             "post_submit_lessons": len(context["post_submit_lessons"]),
+            "agent_memory_items": len(agent_memory.get("items") or []),
+            "agent_memory_health": agent_memory.get("health") or {},
             "field_opportunities": len(context["field_opportunities"]),
             "community_skills": len(context["community_skills"]),
             "community_context_dir": context["community_context_dir"],
             "output": str(self.paths.memory_context),
             "markdown": str(self.paths.memory_context_markdown),
         }
+
+    def _agent_memory_packet(self) -> dict[str, Any]:
+        if not self.config.agent_memory_v2:
+            return {"enabled": False, "items": [], "health": {"ok": True, "selected": 0}}
+        try:
+            from .wq_agent_core import RunScope, SqlAgentRepository
+            from .wq_agent_core.memory import ScopedMemoryRetriever
+
+            scope = RunScope(
+                user_id=self.config.agent_user_id,
+                account=self.config.account,
+                region=self.config.region,
+                universe=self.config.universe,
+                delay=self.config.delay,
+            )
+            provider = self.dependencies.get("agent_memory_packet")
+            if provider:
+                packet = provider(scope, self.config.agent_memory_limit, self.config)
+            else:
+                retriever = self.dependencies.get("agent_memory_retriever") or ScopedMemoryRetriever(SqlAgentRepository())
+                packet = retriever.retrieve(scope, limit=self.config.agent_memory_limit)
+            return {"enabled": True, **dict(packet or {})}
+        except Exception as exc:
+            return {
+                "enabled": True,
+                "items": [],
+                "health": {"ok": False, "selected": 0, "error": str(exc)},
+            }
 
     def _ledger_rows(self, statuses: list[str], limit: int) -> list[dict]:
         provider = self.dependencies.get("ledger_rows")

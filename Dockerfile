@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ && \
     rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
+COPY pyproject.toml README.md LICENSE ./
+COPY worldquant_harness/ ./worldquant_harness/
 RUN pip install --no-cache-dir -e ".[postgresql]" && \
     rm -rf /root/.cache/pip
 
-COPY worldquant_harness/ ./worldquant_harness/
 COPY scripts/ ./scripts/
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 

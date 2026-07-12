@@ -6,14 +6,17 @@ services:
     volumes:
       - worldquant-harness-data:/app/data
       - worldquant-harness-reports:/app/reports
-      - ./worldquant_harness.db:/app/worldquant_harness.db
+      - worldquant-harness-state:/app/state
     env_file:
       - .env
     environment:
-      - AUTH_DISABLED=true
-      - DATABASE_URL=postgresql+asyncpg://worldquant_harness:password@host.docker.internal:5433/worldquant_harness
+      AUTH_DISABLED: ${AUTH_DISABLED:-true}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/state/worldquant_harness.db}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
   worldquant-harness-data:
   worldquant-harness-reports:
+  worldquant-harness-state:

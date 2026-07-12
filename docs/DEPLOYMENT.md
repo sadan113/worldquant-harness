@@ -13,6 +13,7 @@
 | 磁盘 | 20 GB | 50 GB（含行情缓存） |
 | OS | Ubuntu 22.04 / Debian 12 / macOS | 同左 |
 | Python | 3.10+ | 3.12 |
+| Node.js | 20+（仅裸机前端构建） | 20 LTS |
 | Docker | 24.0+（Docker 部署方式） | 同左 |
 
 ---
