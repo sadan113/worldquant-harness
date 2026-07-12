@@ -100,6 +100,17 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--no-iteration-audit", action="store_true", help="Disable detailed iteration audit artifacts")
     parser.add_argument("--audit-history-limit", type=int, default=20, help="Number of sibling run audit summaries used for lightweight history baseline")
     parser.add_argument("--audit-include-expressions", action="store_true", help="Include full expressions in iteration_audit.jsonl; Markdown remains hash/field based")
+    parser.add_argument(
+        "--agent-event-mode",
+        choices=["off", "shadow"],
+        default="shadow",
+        help="Mirror completed legacy workflow artifacts into the canonical event store",
+    )
+    parser.add_argument("--no-agent-memory-v2", action="store_true", help="Disable scoped canonical memory in model context")
+    parser.add_argument("--agent-memory-limit", type=int, default=60)
+    parser.add_argument("--agent-user-id", default=None, help="Optional tenant UUID for event and memory isolation")
+    parser.add_argument("--autopilot-branch-min-trials", type=int, default=3)
+    parser.add_argument("--autopilot-branch-failure-limit", type=int, default=3)
 
 
 def _config_from_args(args: argparse.Namespace) -> WQAgentWorkflowConfig:
@@ -161,6 +172,12 @@ def _config_from_args(args: argparse.Namespace) -> WQAgentWorkflowConfig:
         autopilot_submit=bool(args.submit),
         autopilot_resume=bool(args.resume),
         target_active=args.target_active,
+        agent_event_mode=args.agent_event_mode,
+        agent_memory_v2=not args.no_agent_memory_v2,
+        agent_memory_limit=max(1, args.agent_memory_limit),
+        agent_user_id=args.agent_user_id,
+        autopilot_branch_min_trials=max(1, args.autopilot_branch_min_trials),
+        autopilot_branch_failure_limit=max(1, args.autopilot_branch_failure_limit),
     )
 
 

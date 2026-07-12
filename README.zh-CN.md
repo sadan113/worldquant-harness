@@ -102,6 +102,8 @@ worldquant-harness 把因子挖掘视为受控研究循环：
 
 默认公开路径不会提交。真实 WQ BRAIN 操作需要显式凭证和显式提交命令。
 
+WQ Agent Core v2 现将候选、模拟、检查、提交和 ACTIVE 状态记录为幂等数据库事件。数据库事件是事实源，JSONL 保留为可读兼容导出；中断提交会先与平台状态对账，记忆按 owner/account/region/universe/delay 隔离，autopilot 分支预算与剪枝状态会持久化。详见 [WQ Agent Core v2](docs/WQ_AGENT_CORE_V2.md)。
+
 ## 公开演示
 
 公开演示是可复现契约。它使用合成测试夹具和受保护适配器，不需要 WQ BRAIN、DeepSeek、Wind 或私有行情数据。
@@ -125,6 +127,7 @@ python scripts/run_public_harness_eval.py --output-root reports/public_harness_e
 | `presubmit_ready_sequential.jsonl` | 通过的候选 |
 | `presubmit_rejected.jsonl` | 拒绝原因和阻塞记忆 |
 | `alpha_lifecycle_events.jsonl` | 追加式生命周期轨迹 |
+| `agent_events.jsonl` | 可恢复 live run 的 v2 规范事件导出 |
 | `eval_summary.json` | 框架评分和门控决策 |
 | `evolution_result.json` | 下一轮画像候选 |
 
@@ -150,7 +153,7 @@ python scripts/run_public_harness_eval.py --output-root reports/public_harness_e
 
 新的 iteration audit 默认写出 `iteration_audit.jsonl`、`iteration_audit_summary.json` 和 `iteration_audit.md`。默认报告不暴露完整表达式，而是使用表达式 hash、字段签名、算子、指标、失败类型和下一步动作，方便公开说明方法论，也方便本地继续排查提交体系是否有效。
 
-代码结构也围绕这个流程做了收敛：artifact I/O 和 record utilities 复用到 WQ workflow，repair template 按失败类型拆分，候选/repair 去重的 first-wins key 语义进入通用 helper。详见 [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md)、[Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md)、[WQ Workflow](docs/WQ_WORKFLOW.md) 和 [冗余模块审计](docs/WQ_REDUNDANCY_MODULE_AUDIT.md)。
+代码结构也围绕这个流程做了收敛：artifact I/O 和 record utilities 复用到 WQ workflow，repair template 按失败类型拆分，候选/repair 去重的 first-wins key 语义进入通用 helper。详见 [WQ Agent Core v2](docs/WQ_AGENT_CORE_V2.md)、[Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md)、[Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md)、[WQ Workflow](docs/WQ_WORKFLOW.md) 和 [冗余模块审计](docs/WQ_REDUNDANCY_MODULE_AUDIT.md)。
 
 ## 可视化材料
 

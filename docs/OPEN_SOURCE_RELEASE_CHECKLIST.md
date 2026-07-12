@@ -21,7 +21,7 @@ release gate until that debt is intentionally reduced.
 
 ## Current Verification Snapshot
 
-Last verified: 2026-06-25.
+Last verified: 2026-07-12.
 
 - Public docs/new package legacy-name scan: no hits in publishable paths.
 - Public docs/example alpha-id and secret scan: 0 hits.
@@ -29,11 +29,13 @@ Last verified: 2026-06-25.
 - Unused image scan: 0 unused images after removing the old `star-history.png`.
 - `git ls-files .env .secrets data reports logs references "*.db"`: no tracked private runtime files.
 - `python -m ruff check worldquant_harness tests`: passed.
-- `pytest tests/ -x -q --cov=worldquant_harness --cov-report=term-missing --cov-fail-under=33`: 619 passed, 2 skipped, total coverage 65.02%.
+- `pytest tests/ -x -q --cov=worldquant_harness --cov-report=term-missing --cov-fail-under=33`: 667 passed, 2 skipped, total coverage 68.69%.
 - `python scripts/run_public_harness_demo.py --output-root .test_tmp/public_harness_demo_ci --run-id public-harness-demo-ci`: passed, no real submit attempted.
 - `python scripts/validate_public_harness_artifacts.py .test_tmp/public_harness_demo_ci`: passed with `manifest_contains_absolute_paths` warning in ignored local output.
 - `npm --prefix frontend audit --audit-level=low`: 0 vulnerabilities.
 - `npm --prefix frontend run build`: passed; Vite reports a large main chunk as a follow-up optimization.
+- Fresh SQLite startup on an isolated database plus `GET /api/v1/health`: passed.
+- Docker Compose YAML and default named-volume SQLite mapping: parsed and structurally checked; Docker was not available on the verification host for a container smoke test.
 
 Run the full required gates again immediately before pushing.
 

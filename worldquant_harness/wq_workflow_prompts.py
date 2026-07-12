@@ -43,6 +43,20 @@ def render_memory_context_markdown(context: dict) -> str:
             f"- {row.get('alpha_id') or 'candidate'}: label={row.get('label')} action={row.get('next_action')} "
             f"lesson={row.get('lesson')} expr={_short_expr(row.get('expression'))}"
         )
+    agent_memory = context.get("agent_memory_v2") or {}
+    health = agent_memory.get("health") or {}
+    lines.extend([
+        "",
+        "## Canonical Agent Memory",
+        f"- scope={health.get('scope_key') or 'disabled'} selected={health.get('selected') or 0} "
+        f"available={health.get('available') or 0} evidence={health.get('evidence_counts') or {}}",
+    ])
+    for row in agent_memory.get("items") or []:
+        lines.append(
+            f"- bucket={row.get('bucket')} evidence={row.get('evidence_class')} confidence={row.get('confidence')} "
+            f"support={row.get('support_count')} failure={row.get('failure_kind')} reason={_short_expr(row.get('reason'), 180)} "
+            f"action={_short_expr(row.get('recommendation'), 220)} expr={_short_expr(row.get('expression'))}"
+        )
     lines.extend(["", "## Community Field Opportunities"])
     for row in context.get("field_opportunities") or []:
         fields = ", ".join(str(field) for field in (row.get("low_overlap_fields") or row.get("fields") or [])[:8])
@@ -141,6 +155,9 @@ def parse_model_candidate_response(response: Any) -> list[dict]:
             "parent_alpha_ids": item.get("parent_alpha_ids") if isinstance(item.get("parent_alpha_ids"), list) else [],
             "risk_flags": item.get("risk_flags") if isinstance(item.get("risk_flags"), list) else [],
             "source_family": item.get("source_family") or item.get("mutation_strategy") or "model_generated",
+            "provenance": item.get("provenance"),
+            "simulation_settings": item.get("simulation_settings") if isinstance(item.get("simulation_settings"), dict) else {},
+            "autopilot_branch": item.get("autopilot_branch"),
         })
     return parsed
 

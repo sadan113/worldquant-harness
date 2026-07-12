@@ -8,7 +8,9 @@ import pytest
 from worldquant_harness.wq_agent_config import WorkflowPaths, WQAgentWorkflowConfig
 from worldquant_harness.wq_agent_workflow import run_workflow
 from worldquant_harness.wq_autopilot_controller import (
+    allocate_branch_budgets,
     build_autopilot_branch_plan,
+    build_autopilot_branch_state,
     build_autopilot_status_inventory,
     compile_autopilot_policy,
     prepare_autopilot_candidate_files,
@@ -177,6 +179,9 @@ def test_autopilot_presubmit_runs_without_real_submit_and_writes_decision_artifa
     assert [row["event"] for row in events][-1] == "autopilot_finished"
     child_ready = _read_jsonl(config.output_dir / "autopilot_presubmit" / "presubmit_ready_sequential.jsonl")
     assert child_ready[0]["alpha_id"] == "alpha_ready"
+    assert child_ready[0]["autopilot_branch"] == summary["autopilot"]["branch_plan"]["primary_branch"]
+    branch_rows = summary["autopilot"]["state"]["branch_state"]["branches"]
+    assert branch_rows[child_ready[0]["autopilot_branch"]]["status"] == "productive"
 
 
 def test_autopilot_submit_requires_explicit_submit_flag_and_can_reach_active(workdir):
@@ -240,3 +245,59 @@ def test_autopilot_submit_requires_explicit_submit_flag_and_can_reach_active(wor
     assert submit_calls == [["alpha_submit"]]
     assert summary["autopilot"]["state"]["child_mode"] == "run-submit"
     assert summary["autopilot"]["state"]["active_count"] == 1
+
+
+def test_branch_budgets_are_integer_caps_and_failed_branch_is_persistently_pruned(workdir):
+    budgets = allocate_branch_budgets({"a": 0.6, "b": 0.2, "c": 0.2}, 7)
+    assert sum(budgets.values()) == 7
+    assert budgets["a"] >= budgets["b"]
+
+    policy = {"failure_counts": {"self_correlation": 4}}
+    inventory = {"ready_count": 0, "active_count": 0}
+    plan = build_autopilot_branch_plan(
+        policy,
+        inventory=inventory,
+        simulation_budget=5,
+        candidate_budget=5,
+        min_trials=3,
+        failure_limit=3,
+    )
+    branch = plan["primary_branch"]
+    child = workdir / "branch_child"
+    simulation_rows = []
+    review_rows = []
+    for index in range(3):
+        base = {
+            "candidate_uid": f"candidate-{index}",
+            "expression": f"rank(ts_delay(close, {index + 1}))",
+            "autopilot_branch": branch,
+        }
+        simulation_rows.append({**base, "alpha_id": f"alpha-{index}", "status": "eligible"})
+        review_rows.append({
+            **base,
+            "alpha_id": f"alpha-{index}",
+            "triage_bucket": "hard_fail",
+            "failure_kind": "self_correlation",
+        })
+    _write_jsonl(child / "simulation_results.jsonl", simulation_rows)
+    _write_jsonl(child / "review_queue.jsonl", review_rows)
+    tracker = {
+        "budgets": plan["candidate_budgets"],
+        "accepted": {name: (3 if name == branch else 0) for name in plan["candidate_budgets"]},
+        "rejected_budget": {name: 0 for name in plan["candidate_budgets"]},
+        "unassigned": 0,
+    }
+
+    state = build_autopilot_branch_state(plan, child_output_dir=child, tracker=tracker)
+
+    assert state["branches"][branch]["status"] == "pruned"
+    assert state["branches"][branch]["prune_reason"] == "self_correlation_limit_reached:3"
+    resumed = build_autopilot_branch_plan(
+        policy,
+        inventory=inventory,
+        simulation_budget=5,
+        candidate_budget=5,
+        previous_state={"branch_state": state},
+    )
+    assert branch in resumed["pruned_branches"]
+    assert branch not in resumed["candidate_budgets"]

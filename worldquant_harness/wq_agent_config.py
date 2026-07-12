@@ -79,6 +79,12 @@ class WQAgentWorkflowConfig:
     autopilot_submit: bool = False
     autopilot_resume: bool = False
     target_active: int = 0
+    agent_event_mode: str = "off"
+    agent_memory_v2: bool = False
+    agent_memory_limit: int = 60
+    agent_user_id: str | None = None
+    autopilot_branch_min_trials: int = 3
+    autopilot_branch_failure_limit: int = 3
 
 
 @dataclass

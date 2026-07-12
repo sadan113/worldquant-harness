@@ -61,7 +61,16 @@ def run_autopilot(
     write_json(paths.autopilot_policy, policy)
     _append_event(paths, "policy_compiled", _policy_event_payload(policy))
 
-    branch_plan = build_autopilot_branch_plan(policy, inventory=inventory)
+    previous_state = read_json(paths.autopilot_state) if config.autopilot_resume else {}
+    branch_plan = build_autopilot_branch_plan(
+        policy,
+        inventory=inventory,
+        simulation_budget=config.max_total_simulations,
+        candidate_budget=config.max_total_simulations,
+        previous_state=previous_state,
+        min_trials=config.autopilot_branch_min_trials,
+        failure_limit=config.autopilot_branch_failure_limit,
+    )
     write_json(paths.autopilot_branch_plan, branch_plan)
     _append_event(paths, "branch_selected", _branch_event_payload(branch_plan))
 
@@ -78,6 +87,16 @@ def run_autopilot(
         candidate_files=candidate_files,
     )
     child_dependencies = _autopilot_dependencies(dependencies, branch_plan=branch_plan, policy=policy)
+    branch_tracker = child_dependencies["autopilot_branch_budget_tracker"]
+    _append_event(
+        paths,
+        "branch_budget_initialized",
+        {
+            "candidate_budgets": branch_plan.get("candidate_budgets") or {},
+            "simulation_budgets": branch_plan.get("simulation_budgets") or {},
+            "pruned_branches": branch_plan.get("pruned_branches") or [],
+        },
+    )
     _append_event(
         paths,
         "child_workflow_started",
@@ -105,6 +124,15 @@ def run_autopilot(
     )
 
     final_inventory = build_autopilot_status_inventory(config, paths, child_output_dir=child_config.output_dir)
+    branch_state = build_autopilot_branch_state(
+        branch_plan,
+        child_output_dir=child_config.output_dir,
+        tracker=branch_tracker,
+        previous_state=previous_state,
+    )
+    for branch, row in branch_state.get("branches", {}).items():
+        if row.get("status") == "pruned":
+            _append_event(paths, "branch_pruned", {"branch": branch, "reason": row.get("prune_reason")})
     state = build_autopilot_state(
         config,
         paths,
@@ -114,6 +142,7 @@ def run_autopilot(
         child_summary=child_summary,
         child_mode=child_mode,
         child_output_dir=child_config.output_dir,
+        branch_state=branch_state,
     )
     write_json(paths.autopilot_state, state)
     write_text(paths.autopilot_decisions, render_autopilot_decisions(state, policy=policy, branch_plan=branch_plan))
@@ -131,6 +160,8 @@ def run_autopilot(
             "file": str(paths.autopilot_branch_plan),
             "primary_branch": branch_plan.get("primary_branch"),
             "generation_mode": branch_plan.get("generation_mode"),
+            "candidate_budgets": branch_plan.get("candidate_budgets") or {},
+            "simulation_budgets": branch_plan.get("simulation_budgets") or {},
         },
         "candidate_sources": candidate_summary,
         "child": child_summary,
@@ -300,7 +331,16 @@ def compile_autopilot_policy(
     }
 
 
-def build_autopilot_branch_plan(policy: dict[str, Any], *, inventory: dict[str, Any]) -> dict[str, Any]:
+def build_autopilot_branch_plan(
+    policy: dict[str, Any],
+    *,
+    inventory: dict[str, Any],
+    simulation_budget: int = 0,
+    candidate_budget: int = 0,
+    previous_state: dict[str, Any] | None = None,
+    min_trials: int = 3,
+    failure_limit: int = 3,
+) -> dict[str, Any]:
     """Choose the next branch using a conservative DFS-with-small-beam policy."""
 
     failure_counts = Counter(policy.get("failure_counts") or {})
@@ -360,6 +400,27 @@ def build_autopilot_branch_plan(policy: dict[str, Any], *, inventory: dict[str, 
     for branch in secondary:
         quotas[branch] = 0.20
 
+    previous_branches = ((previous_state or {}).get("branch_state") or {}).get("branches") or {}
+    pruned_branches = sorted(
+        branch
+        for branch, row in previous_branches.items()
+        if isinstance(row, dict) and row.get("status") == "pruned" and branch in quotas
+    )
+    active_quotas = {branch: quota for branch, quota in quotas.items() if branch not in pruned_branches}
+    if active_quotas:
+        total_quota = sum(active_quotas.values())
+        active_quotas = {branch: quota / total_quota for branch, quota in active_quotas.items()}
+        if primary in pruned_branches:
+            primary = next(iter(active_quotas))
+        secondary = [branch for branch in active_quotas if branch != primary]
+    else:
+        active_quotas = {}
+
+    simulation_total = max(0, int(simulation_budget))
+    candidate_total = max(0, int(candidate_budget or simulation_total))
+    simulation_budgets = allocate_branch_budgets(active_quotas, simulation_total)
+    candidate_budgets = allocate_branch_budgets(active_quotas, candidate_total)
+
     return {
         "schema_version": 1,
         "created_at": utc_now(),
@@ -368,7 +429,14 @@ def build_autopilot_branch_plan(policy: dict[str, Any], *, inventory: dict[str, 
         "secondary_branches": secondary,
         "dominant_failure": dominant_failure,
         "generation_mode": "mixed-evolutionary",
-        "branch_quotas": quotas,
+        "branch_quotas": active_quotas,
+        "candidate_budgets": candidate_budgets,
+        "simulation_budgets": simulation_budgets,
+        "pruned_branches": pruned_branches,
+        "pruning_policy": {
+            "min_trials": max(1, int(min_trials)),
+            "failure_limit": max(1, int(failure_limit)),
+        },
         "actions": actions,
         "preferred_field_families": policy.get("preferred_field_families") or [],
         "avoid_field_signatures": policy.get("avoid_field_signatures") or [],
@@ -425,6 +493,120 @@ def prepare_autopilot_candidate_files(
     }
 
 
+def allocate_branch_budgets(quotas: dict[str, float], total: int) -> dict[str, int]:
+    """Convert fractional branch quotas into deterministic integer caps."""
+
+    budget = max(0, int(total))
+    if not quotas or budget == 0:
+        return {branch: 0 for branch in quotas}
+    normalized_total = sum(max(0.0, float(value)) for value in quotas.values())
+    if normalized_total <= 0:
+        return {branch: 0 for branch in quotas}
+    exact = {
+        branch: budget * max(0.0, float(quota)) / normalized_total
+        for branch, quota in quotas.items()
+    }
+    allocated = {branch: int(value) for branch, value in exact.items()}
+    remainder = budget - sum(allocated.values())
+    order = sorted(
+        quotas,
+        key=lambda branch: (-(exact[branch] - allocated[branch]), -float(quotas[branch]), branch),
+    )
+    for branch in order[:remainder]:
+        allocated[branch] += 1
+    return allocated
+
+
+def build_autopilot_branch_state(
+    branch_plan: dict[str, Any],
+    *,
+    child_output_dir: Path,
+    tracker: dict[str, Any],
+    previous_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Summarize branch outcomes and persist deterministic pruning decisions."""
+
+    previous_branches = ((previous_state or {}).get("branch_state") or {}).get("branches") or {}
+    candidate_rows = _rows_for_artifact(child_output_dir, "candidate_pool.jsonl")
+    simulation_rows = _rows_for_artifact(child_output_dir, "simulation_results.jsonl")
+    ready_rows = _rows_for_artifact(child_output_dir, "presubmit_ready_sequential.jsonl")
+    review_rows = [
+        *_rows_for_artifact(child_output_dir, "review_queue.jsonl"),
+        *_rows_for_artifact(child_output_dir, "presubmit_rejected.jsonl"),
+    ]
+    submit_rows = [
+        *_rows_for_artifact(child_output_dir, "submit_results.jsonl"),
+        *_rows_for_artifact(child_output_dir, "submitted_accumulator.jsonl"),
+    ]
+    branch_names = set(previous_branches)
+    branch_names.update((branch_plan.get("candidate_budgets") or {}).keys())
+    branch_names.update(branch_plan.get("pruned_branches") or [])
+    min_trials = max(1, int((branch_plan.get("pruning_policy") or {}).get("min_trials") or 3))
+    failure_limit = max(1, int((branch_plan.get("pruning_policy") or {}).get("failure_limit") or 3))
+    branches: dict[str, Any] = {}
+
+    for branch in sorted(branch_names):
+        previous = previous_branches.get(branch) if isinstance(previous_branches.get(branch), dict) else {}
+        current_candidates = int((tracker.get("accepted") or {}).get(branch) or 0)
+        if current_candidates == 0:
+            current_candidates = len(_unique_branch_rows(candidate_rows, branch))
+        current_simulated = len(_unique_branch_rows(simulation_rows, branch))
+        current_ready = len(_unique_branch_rows([*ready_rows, *[row for row in review_rows if _is_ready_outcome(row)]], branch))
+        current_active = len(_unique_branch_rows([row for row in submit_rows if _is_successful_submit_row(row)], branch))
+        branch_failures = Counter(
+            _failure_bucket(row)
+            for row in review_rows + submit_rows
+            if str(row.get("autopilot_branch") or "") == branch and not _is_ready_outcome(row) and not _is_successful_submit_row(row)
+        )
+        branch_failures.pop("other", None)
+        previous_totals = previous.get("totals") if isinstance(previous.get("totals"), dict) else {}
+        totals = {
+            "candidates": int(previous_totals.get("candidates") or 0) + current_candidates,
+            "simulated": int(previous_totals.get("simulated") or 0) + current_simulated,
+            "ready": int(previous_totals.get("ready") or 0) + current_ready,
+            "active": int(previous_totals.get("active") or 0) + current_active,
+        }
+        previous_failure_counts = previous.get("failure_counts") if isinstance(previous.get("failure_counts"), dict) else {}
+        cumulative_failures = Counter(previous_failure_counts)
+        cumulative_failures.update(branch_failures)
+        status = "active"
+        prune_reason = ""
+        if previous.get("status") == "pruned":
+            status = "pruned"
+            prune_reason = str(previous.get("prune_reason") or "persisted_prune")
+        elif totals["active"] > 0 or totals["ready"] > 0:
+            status = "productive"
+        elif totals["simulated"] >= min_trials:
+            dominant = _dominant_failure(cumulative_failures)
+            if dominant and cumulative_failures[dominant] >= failure_limit:
+                status = "pruned"
+                prune_reason = f"{dominant}_limit_reached:{cumulative_failures[dominant]}"
+        budget = int((branch_plan.get("candidate_budgets") or {}).get(branch) or 0)
+        if status == "active" and budget > 0 and current_candidates >= budget:
+            status = "exhausted"
+            prune_reason = "candidate_budget_exhausted_without_ready_or_active"
+        branches[branch] = {
+            "status": status,
+            "prune_reason": prune_reason,
+            "candidate_budget": budget,
+            "simulation_budget": int((branch_plan.get("simulation_budgets") or {}).get(branch) or 0),
+            "candidates": current_candidates,
+            "simulated": current_simulated,
+            "ready": current_ready,
+            "active": current_active,
+            "failure_counts": dict(sorted(cumulative_failures.items())),
+            "totals": totals,
+            "budget_rejections": int((tracker.get("rejected_budget") or {}).get(branch) or 0),
+        }
+
+    return {
+        "schema_version": 1,
+        "updated_at": utc_now(),
+        "branches": branches,
+        "tracker": tracker,
+    }
+
+
 def build_autopilot_state(
     config: WQAgentWorkflowConfig,
     paths: WorkflowPaths,
@@ -435,6 +617,7 @@ def build_autopilot_state(
     child_summary: dict[str, Any],
     child_mode: str,
     child_output_dir: Path,
+    branch_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     target_ready = config.target_ready if not config.autopilot_submit else 0
     target_active = config.target_active or config.target_submissions
@@ -456,6 +639,7 @@ def build_autopilot_state(
         "strict_self_correlation_cutoff": policy.get("gates", {}).get("strict_self_correlation_cutoff"),
         "primary_branch": branch_plan.get("primary_branch"),
         "branch_strategy": branch_plan.get("strategy"),
+        "branch_state": branch_state or {"branches": {}},
         "child_mode": child_mode,
         "child_output_dir": str(child_output_dir),
         "stop_reason": _child_stop_reason(child_summary, child_mode),
@@ -500,10 +684,23 @@ def render_autopilot_decisions(
         f"- Primary branch: {branch_plan.get('primary_branch')}",
         f"- Dominant failure: {branch_plan.get('dominant_failure') or 'none'}",
         f"- Actions: {'; '.join(branch_plan.get('actions') or [])}",
+        f"- Candidate budgets: {branch_plan.get('candidate_budgets') or {}}",
+        f"- Simulation budgets: {branch_plan.get('simulation_budgets') or {}}",
+        "",
+        "## Branch Outcomes",
+        "",
+    ]
+    for branch, row in (state.get("branch_state", {}).get("branches") or {}).items():
+        lines.append(
+            f"- {branch}: status={row.get('status')} candidates={row.get('candidates')} "
+            f"simulated={row.get('simulated')} ready={row.get('ready')} active={row.get('active')} "
+            f"failures={row.get('failure_counts') or {}} reason={row.get('prune_reason') or ''}"
+        )
+    lines.extend([
         "",
         "## Files",
         "",
-    ]
+    ])
     for label, value in (state.get("files") or {}).items():
         lines.append(f"- {label}: `{value}`")
     lines.append("")
@@ -562,11 +759,29 @@ def _autopilot_dependencies(
     policy: dict[str, Any],
 ) -> dict[str, Any]:
     delegate = dependencies.get("model_generate_candidates") or default_model_generate_candidates
+    candidate_budgets = {
+        str(branch): max(0, int(value))
+        for branch, value in (branch_plan.get("candidate_budgets") or {}).items()
+    }
+    tracker: dict[str, Any] = {
+        "budgets": candidate_budgets,
+        "accepted": {branch: 0 for branch in candidate_budgets},
+        "rejected_budget": {branch: 0 for branch in candidate_budgets},
+        "unassigned": 0,
+    }
 
     def model_generate_candidates(prompt: str, config: WQAgentWorkflowConfig) -> Any:
         return delegate(_enrich_model_prompt(prompt, branch_plan=branch_plan, policy=policy), config)
 
-    return {**dependencies, "model_generate_candidates": model_generate_candidates}
+    def candidate_pool_filter(rows: list[dict[str, Any]], config: WQAgentWorkflowConfig) -> list[dict[str, Any]]:
+        return _apply_branch_candidate_budgets(rows, branch_plan=branch_plan, tracker=tracker)
+
+    return {
+        **dependencies,
+        "model_generate_candidates": model_generate_candidates,
+        "candidate_pool_filter": candidate_pool_filter,
+        "autopilot_branch_budget_tracker": tracker,
+    }
 
 
 def _enrich_model_prompt(prompt: str, *, branch_plan: dict[str, Any], policy: dict[str, Any]) -> str:
@@ -579,8 +794,78 @@ def _enrich_model_prompt(prompt: str, *, branch_plan: dict[str, Any], policy: di
         f"- Strict self-correlation cutoff: {policy.get('gates', {}).get('strict_self_correlation_cutoff')}\n"
         f"- Avoid field signatures: {', '.join(policy.get('avoid_field_signatures') or []) or 'none'}\n"
         f"- Preferred field families: {', '.join(policy.get('preferred_field_families') or []) or 'none'}\n"
-        "Return candidates with expression, source_family, tag, rationale, provenance, and simulation_settings when possible.\n"
+        f"- Branch candidate budgets: {branch_plan.get('candidate_budgets') or {}}\n"
+        "Return candidates with expression, source_family, tag, rationale, provenance, and simulation_settings when possible. "
+        "The harness assigns and enforces the final autopilot_branch.\n"
     )
+
+
+def _apply_branch_candidate_budgets(
+    rows: list[dict[str, Any]],
+    *,
+    branch_plan: dict[str, Any],
+    tracker: dict[str, Any],
+) -> list[dict[str, Any]]:
+    budgets = tracker["budgets"]
+    accepted = tracker["accepted"]
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        requested = str(row.get("autopilot_branch") or "")
+        branch = requested if requested in budgets else _infer_candidate_branch(row, branch_plan)
+        if branch not in budgets or accepted[branch] >= budgets[branch]:
+            branch = _branch_with_most_remaining(budgets, accepted)
+        if not branch:
+            tracker["unassigned"] += 1
+            if requested in tracker["rejected_budget"]:
+                tracker["rejected_budget"][requested] += 1
+            continue
+        accepted[branch] += 1
+        out.append({
+            **row,
+            "autopilot_branch": branch,
+            "autopilot_branch_budget": budgets[branch],
+            "autopilot_branch_sequence": accepted[branch],
+        })
+    return out
+
+
+def _infer_candidate_branch(row: dict[str, Any], branch_plan: dict[str, Any]) -> str:
+    branches = set((branch_plan.get("candidate_budgets") or {}).keys())
+    text = " ".join(
+        str(row.get(key) or "")
+        for key in ("failure_kind", "mutation_strategy", "source_family", "rationale", "source")
+    ).lower()
+    preferences = []
+    if "self" in text and "corr" in text:
+        preferences.append("decorrelate_field_operator_family")
+    if any(token in text for token in ("concentr", "sparse", "coverage")):
+        preferences.append("reduce_sparse_concentration")
+    if any(token in text for token in ("metric", "sharpe", "fitness", "turnover", "breadth")):
+        preferences.append("breadth_metric_repair")
+    if any(token in text for token in ("fresh", "forum", "orthogonal", "explor")):
+        preferences.append("fresh_low_correlation_exploration")
+    preferences.extend([
+        str(branch_plan.get("primary_branch") or ""),
+        *(branch_plan.get("secondary_branches") or []),
+    ])
+    return next((branch for branch in preferences if branch in branches), "")
+
+
+def _branch_with_most_remaining(budgets: dict[str, int], accepted: dict[str, int]) -> str:
+    available = [
+        branch
+        for branch, budget in budgets.items()
+        if accepted.get(branch, 0) < budget
+    ]
+    if not available:
+        return ""
+    return sorted(
+        available,
+        key=lambda branch: (
+            -(budgets[branch] - accepted.get(branch, 0)),
+            branch,
+        ),
+    )[0]
 
 
 def _normalize_candidate_row(row: dict[str, Any], *, source_path: Path, config: WQAgentWorkflowConfig) -> dict[str, Any]:
@@ -668,6 +953,31 @@ def _artifact_paths(
                 out.append(direct)
             out.extend(path for path in root.rglob(name) if path.is_file())
     return _dedupe_paths(out)
+
+
+def _rows_for_artifact(root: Path, name: str) -> list[dict[str, Any]]:
+    return _read_rows_from_paths(_artifact_paths([root], name))
+
+
+def _unique_branch_rows(rows: list[dict[str, Any]], branch: str) -> list[dict[str, Any]]:
+    unique: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if str(row.get("autopilot_branch") or "") != branch:
+            continue
+        key = str(
+            row.get("candidate_uid")
+            or row.get("alpha_id")
+            or candidate_dedupe_key(row)
+        )
+        unique[key] = row
+    return list(unique.values())
+
+
+def _is_ready_outcome(row: dict[str, Any]) -> bool:
+    return bool(row.get("presubmit_accepted")) or str(row.get("triage_bucket") or "") in {
+        "confirmed_ready",
+        "active_or_submitted",
+    }
 
 
 def _read_rows_from_paths(paths: list[Path]) -> list[dict[str, Any]]:

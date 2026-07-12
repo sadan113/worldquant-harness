@@ -215,6 +215,7 @@ def _write_presubmit_loop_status(
 def _finish(paths: WorkflowPaths, config: WQAgentWorkflowConfig, mode: str, sections: dict[str, Any]) -> dict:
     review_rows = _read_jsonl(paths.review_queue) if paths.review_queue.is_file() else []
     iteration_audit = _workflow_iteration_audit(paths, config, mode)
+    agent_event_sync = _sync_agent_events(paths, config)
     summary = {
         "schema_version": 1,
         "ok": True,
@@ -226,11 +227,32 @@ def _finish(paths: WorkflowPaths, config: WQAgentWorkflowConfig, mode: str, sect
         "bucket_counts": dict(sorted(Counter(row.get("triage_bucket") for row in review_rows).items())),
         "community_skill_report": _workflow_community_skill_report(paths, review_rows),
         "iteration_audit": iteration_audit,
+        "agent_event_sync": agent_event_sync,
         "files": _workflow_files(paths),
         **sections,
     }
     _write_json(paths.summary, summary)
     return summary
+
+
+def _sync_agent_events(paths: WorkflowPaths, config: WQAgentWorkflowConfig) -> dict[str, Any]:
+    if config.agent_event_mode == "off":
+        return {"enabled": False, "mode": "off"}
+    if config.dry_run:
+        return {"enabled": True, "ok": True, "skipped": True, "reason": "dry_run"}
+    try:
+        from .wq_agent_core.workflow_adapter import sync_workflow_artifacts
+
+        return {
+            "enabled": True,
+            **sync_workflow_artifacts(
+                paths.output_dir,
+                account=config.account,
+                user_id=config.agent_user_id,
+            ),
+        }
+    except Exception as exc:
+        return {"enabled": True, "ok": False, "error": str(exc)}
 
 
 def _workflow_iteration_audit(paths: WorkflowPaths, config: WQAgentWorkflowConfig, mode: str) -> dict:

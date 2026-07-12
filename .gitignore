@@ -29,6 +29,13 @@ scripts/local_seed_expressions.json
 scripts/wq_loop_submit_candidates*.jsonl
 scripts/*submit_candidates*.private.jsonl
 scripts/*live_submit*.private.jsonl
+scripts/generate_wq_submit10_batch*.py
+scripts/recheck_submit_pending_wq_alphas.py
+
+# Local test and agent scratch directories
+.codex_start_test*/
+.pytest_tmp/
+.sandbox_tmp*/
 
 # Deploy (removed — local project only)
 deploy/

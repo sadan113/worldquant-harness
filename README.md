@@ -108,6 +108,8 @@ The candidate record shape is intentionally explicit. A useful candidate should 
 
 The 2026-07 update adds a semantic Alpha-GPT layer above the existing harness: hypothesis records, constrained candidate specs, review decisions, reflection memory, and explicit submit evidence are now first-class artifacts. Community triage and local WQ run history are converted into reusable skill memory instead of staying in chat context.
 
+The canonical WQ agent core now records candidate, simulation, check, submit, and ACTIVE transitions as idempotent database events. Database events are the source of truth; JSONL files remain inspectable compatibility exports. Interrupted submits are reconciled against platform status before any retry, memory is isolated by owner/account/region/universe/delay, and autopilot branches have enforced integer budgets plus persistent pruning state. See [WQ Agent Core v2](docs/WQ_AGENT_CORE_V2.md).
+
 中文架构说明：新的设计把系统拆成三层：底层 harness contract 管生命周期和 no-submit 边界；Alpha-GPT 语义层管假设、候选规格、审阅和反思；memory 层把社区经验和本地运行轨迹转成可复用的 skills、repair queue 和 submit/check queue。
 
 The default public path does not submit anything. Real WQ BRAIN actions require explicit credentials and explicit submission commands.
@@ -138,6 +140,7 @@ The demo writes a complete no-submit research bundle:
 | `presubmit_ready_sequential.jsonl` | Accepted candidates |
 | `presubmit_rejected.jsonl` | Rejection reasons and blocker memory |
 | `alpha_lifecycle_events.jsonl` | Append-only lifecycle trace |
+| `agent_events.jsonl` | Canonical v2 event export for resumable live runs |
 | `submit_evidence.json` | Explicit-submit boundary evidence; public eval records no real submit attempt |
 | `eval_summary.json` | Harness score and gate decision |
 | `evolution_result.json` | Next-generation profile candidate |
@@ -180,7 +183,7 @@ The new iteration audit layer writes `iteration_audit.jsonl`, `iteration_audit_s
 
 Code structure was also tightened to support this loop: shared artifact I/O and record utilities are used across the WQ workflow, repair template libraries were split by failure kind, and candidate/repair dedupe now preserves first-wins key semantics through common helpers.
 
-For details, see [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md), [Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md), [WQ Workflow](docs/WQ_WORKFLOW.md), and [Redundancy Module Audit](docs/WQ_REDUNDANCY_MODULE_AUDIT.md).
+For details, see [WQ Agent Core v2](docs/WQ_AGENT_CORE_V2.md), [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md), [Alpha Search Memory](docs/WQ_ALPHA_SEARCH_MEMORY.md), [WQ Workflow](docs/WQ_WORKFLOW.md), and [Redundancy Module Audit](docs/WQ_REDUNDANCY_MODULE_AUDIT.md).
 
 ## Visual Pack
 

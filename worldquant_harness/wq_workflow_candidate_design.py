@@ -98,6 +98,10 @@ class ModelCandidateDesignerAgent:
             if len(rows) < self.config.target_candidates:
                 rows.extend(fallback_rows[: max(0, self.config.target_candidates - len(rows))])
 
+        candidate_pool_filter = self.dependencies.get("candidate_pool_filter")
+        if candidate_pool_filter:
+            rows = list(candidate_pool_filter(rows, self.config))
+
         unique = []
         seen: set[str] = set()
         legal_registry = _legal_input_registry_for_config(self.config)
@@ -154,6 +158,9 @@ class ModelCandidateDesignerAgent:
                 "simulation_settings": _candidate_settings_override(row),
                 "active_similarity": nearest,
                 "candidate_meta": row.get("candidate_meta") or {"model_generation": row.get("model_generation")},
+                "autopilot_branch": row.get("autopilot_branch"),
+                "autopilot_branch_budget": row.get("autopilot_branch_budget"),
+                "autopilot_branch_sequence": row.get("autopilot_branch_sequence"),
             }
             if legal_validation is not None:
                 candidate_record["legal_input_validation"] = legal_validation.to_dict()
