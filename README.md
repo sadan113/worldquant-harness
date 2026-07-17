@@ -242,11 +242,13 @@ The agent can explore, but it works inside a contract. The harness owns state an
 
 The executable contract is implemented through `HarnessRun`, `HarnessStep`, `HarnessEvent`, `ArtifactRef`, `DecisionGate`, `MemoryDelta`, `ProfilePatch`, and the Alpha-GPT semantic records for hypothesis, candidate spec, review decision, reflection, and submit evidence. See [Agent Harness Contract](docs/AGENT_HARNESS_CONTRACT.md), [Alpha-GPT Harness](docs/ALPHA_GPT_HARNESS.md), and [Agent Roles](docs/AGENT_ROLES.md).
 
+For reproducible comparisons, the [Deterministic WQ Agent Benchmark](docs/WQ_AGENT_BENCHMARK.md) runs three benchmark-local scripted reference policies (`no_memory`, `raw_history`, and `scoped_memory_v2`) over nine synthetic cases with fixed seeds, equal allocated budgets, and canonical trace hashes. Its Fake-only gateway rejects submit actions before transport; this is not repo-wide HTTP POST telemetry.
+
 ## Core Capabilities
 
 | Area | Capability |
 |:--|:--|
-| Harness orchestration | Public no-submit eval, sandbox experiments, presubmit gates, lifecycle traces |
+| Harness orchestration | Public no-submit eval, deterministic three-variant benchmark, sandbox experiments, presubmit gates, lifecycle traces |
 | Memory | History ingest, blocker signatures, community skills, trajectory ledgers, factor-family stats, profile evolution |
 | Agent access | MCP tools, CLI scripts, REST API, monitoring UI |
 | Review | Quality review dashboards, Alpha-GPT review decisions, submit efficiency reports, ready/rejected queues |
