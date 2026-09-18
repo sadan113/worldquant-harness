@@ -15,6 +15,7 @@ from .record_utils import first_text as _first_text
 from .wq_agent_config import WorkflowPaths, WQAgentWorkflowConfig
 from .wq_agent_records import simulation_setting_mismatches as _simulation_setting_mismatches
 from .wq_agent_records import simulation_settings_for_candidate as _simulation_settings_for_candidate
+from .wq_community_skill_pipeline import build_rule_of_eight_batches, record_skill_event
 from .wq_alpha_detail import summarize_alpha_probe
 from .wq_brain_client import get_client, is_configured
 from .wq_brain_service import run_check_submissions, run_single_simulation, submit_threshold_checks
@@ -59,6 +60,57 @@ class SimulationAgent:
 
     def run(self) -> dict:
         candidates = _read_jsonl(self.paths.candidate_pool)[: self.config.max_simulations]
+        batch_plan = build_rule_of_eight_batches(
+            candidates,
+            batch_size=self.config.community_batch_size,
+            strict=self.config.community_strict_rule_of_eight,
+        ) if self.config.community_skill_pipeline_enabled else {
+            "batch_size": self.config.community_batch_size,
+            "strict": False,
+            "input_count": len(candidates),
+            "kept_count": len(candidates),
+            "dropped_count": 0,
+            "batches": [candidates] if candidates else [],
+            "dropped": [],
+        }
+        candidates = [row for batch in batch_plan["batches"] for row in batch]
+        if self.config.community_skill_pipeline_enabled:
+            _write_json(self.paths.output_dir / "community_batch_plan.json", {
+                **batch_plan,
+                "batches": [
+                    [
+                        {
+                            "candidate_rank": row.get("candidate_rank"),
+                            "tag": row.get("tag"),
+                            "source_family": row.get("source_family"),
+                            "lowcorr_mmr_score": row.get("lowcorr_mmr_score"),
+                            "lowcorr_nearest_similarity": row.get("lowcorr_nearest_similarity"),
+                        }
+                        for row in batch
+                    ]
+                    for batch in batch_plan["batches"]
+                ],
+                "dropped": [
+                    {
+                        "candidate_rank": row.get("candidate_rank"),
+                        "tag": row.get("tag"),
+                        "source_family": row.get("source_family"),
+                    }
+                    for row in batch_plan["dropped"]
+                ],
+            })
+            record_skill_event(
+                self.paths.output_dir,
+                stage="factor_backtest",
+                event="batch_plan_created",
+                payload={
+                    "batch_size": batch_plan["batch_size"],
+                    "strict": batch_plan["strict"],
+                    "input_count": batch_plan["input_count"],
+                    "kept_count": batch_plan["kept_count"],
+                    "dropped_count": batch_plan["dropped_count"],
+                },
+            )
         if self.config.dry_run:
             rows = [self._dry_run_row(candidate) for candidate in candidates]
         else:
@@ -66,7 +118,20 @@ class SimulationAgent:
             rows = self._simulate_candidates(candidates)
         _write_jsonl(self.paths.simulation_results, rows)
         counts = Counter(row.get("status") for row in rows)
-        return {"ok": True, "simulated": len(rows), "counts": dict(sorted(counts.items())), "output": str(self.paths.simulation_results)}
+        return {
+            "ok": True,
+            "simulated": len(rows),
+            "counts": dict(sorted(counts.items())),
+            "output": str(self.paths.simulation_results),
+            "community_batch_plan": {
+                "batch_size": batch_plan["batch_size"],
+                "strict": batch_plan["strict"],
+                "input_count": batch_plan["input_count"],
+                "kept_count": batch_plan["kept_count"],
+                "dropped_count": batch_plan["dropped_count"],
+                "batch_count": len(batch_plan["batches"]),
+            },
+        }
 
     def _simulate_candidates(self, candidates: list[dict]) -> list[dict]:
         simulator = self.dependencies.get("simulate")
