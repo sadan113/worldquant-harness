@@ -23,9 +23,9 @@ from .wq_agent_records import read_candidate_rows as _read_candidate_rows
 from .wq_agent_records import workflow_settings as _settings
 from .wq_auto_mining import validate_wq_expression
 from .wq_brain_service import submit_threshold_checks
+from .wq_community_skill_pipeline import record_skill_event, write_pipeline_manifest
 from .wq_efficiency import annotate_candidate_identity
 from .wq_evolutionary_generator import generate_evolutionary_candidates
-from .wq_community_skill_pipeline import record_skill_event, write_pipeline_manifest
 from .wq_lowcorr import mmr_select_candidates
 from .wq_similarity import nearest_similarity
 from .wq_workflow_active import _fields, _platform_candidate_family
