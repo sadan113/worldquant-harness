@@ -121,7 +121,7 @@ def pipeline_manifest(
             {
                 "kind": "public_companion_skill_repository",
                 "url": PUBLIC_SKILL_REPO,
-                "license": "Apache-2.0",
+                "license": "not_declared_in_repository_metadata",
                 "verified_components": [
                     "knowledge_base_search",
                     "alpha-research-recorder",
