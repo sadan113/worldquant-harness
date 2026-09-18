@@ -1,0 +1,34 @@
+{
+  "profile": "private-lowcorr-v1",
+  "description": "Diversified WorldQuant research defaults. No automatic submit.",
+  "no_auto_submit": true,
+  "generator": {
+    "structural_similarity_cutoff": 0.60,
+    "mmr_diversity_lambda": 0.45,
+    "max_source_family_count_per_batch": 2,
+    "max_field_signature_count_per_batch": 1,
+    "prefer_distinct_field_families": true,
+    "prefer_distinct_operator_families": true,
+    "avoid_settings_only_mutations_after_self_corr_fail": true
+  },
+  "presubmit": {
+    "virtual_similarity_cutoff": 0.65,
+    "strict_self_correlation_buffer": 0.70,
+    "daily_return_correlation_cutoff": 0.70,
+    "daily_return_correlation_warn": 0.50,
+    "require_platform_check_readable": true,
+    "block_exact_active_duplicate": true,
+    "block_structural_clone": true
+  },
+  "repair": {
+    "self_corr_requires_family_shift": true,
+    "minimum_changed_dimensions": 2,
+    "allowed_changed_dimensions": [
+      "field_family",
+      "dataset_family",
+      "operator_family",
+      "time_horizon",
+      "neutralization_family"
+    ]
+  }
+}
