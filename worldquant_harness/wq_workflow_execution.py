@@ -15,9 +15,9 @@ from .record_utils import first_text as _first_text
 from .wq_agent_config import WorkflowPaths, WQAgentWorkflowConfig
 from .wq_agent_records import simulation_setting_mismatches as _simulation_setting_mismatches
 from .wq_agent_records import simulation_settings_for_candidate as _simulation_settings_for_candidate
-from .wq_community_skill_pipeline import build_rule_of_eight_batches, record_skill_event
 from .wq_alpha_detail import summarize_alpha_probe
 from .wq_brain_client import get_client, is_configured
+from .wq_community_skill_pipeline import build_rule_of_eight_batches, record_skill_event
 from .wq_brain_service import run_check_submissions, run_single_simulation, submit_threshold_checks
 from .wq_efficiency import annotate_candidate_identity
 from .wq_pnl_analysis import (
