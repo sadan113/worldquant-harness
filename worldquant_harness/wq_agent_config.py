@@ -62,6 +62,9 @@ class WQAgentWorkflowConfig:
     private_lowcorr_cutoff: float = 0.60
     private_lowcorr_mmr_lambda: float = 0.45
     private_lowcorr_max_source_family_count: int = 2
+    community_skill_pipeline_enabled: bool = True
+    community_batch_size: int = 8
+    community_strict_rule_of_eight: bool = False
     presubmit_self_correlation_cutoff: float | None = None
     presubmit_daily_return_correlation_cutoff: float | None = 0.70
     presubmit_daily_return_correlation_warn: float | None = 0.50

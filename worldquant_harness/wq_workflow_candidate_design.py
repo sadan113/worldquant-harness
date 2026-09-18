@@ -23,8 +23,10 @@ from .wq_agent_records import read_candidate_rows as _read_candidate_rows
 from .wq_agent_records import workflow_settings as _settings
 from .wq_auto_mining import validate_wq_expression
 from .wq_brain_service import submit_threshold_checks
+from .wq_community_skill_pipeline import record_skill_event, write_pipeline_manifest
 from .wq_efficiency import annotate_candidate_identity
 from .wq_evolutionary_generator import generate_evolutionary_candidates
+from .wq_lowcorr import mmr_select_candidates
 from .wq_similarity import nearest_similarity
 from .wq_workflow_active import _fields, _platform_candidate_family
 from .wq_workflow_constants import HARD_FAIL, SUCCESS_FAMILY_SEEDS
@@ -166,18 +168,57 @@ class ModelCandidateDesignerAgent:
                 candidate_record["legal_input_validation"] = legal_validation.to_dict()
             candidate_record = annotate_candidate_identity(candidate_record, _settings(self.config))
             unique.append(candidate_record)
-            if len(unique) >= self.config.target_candidates:
+            oversample_target = max(self.config.target_candidates, self.config.target_candidates * 4)
+            if len(unique) >= oversample_target:
                 break
 
-        _write_jsonl(self.paths.candidate_pool, unique)
+        if self.config.private_lowcorr_enabled and len(unique) > self.config.target_candidates:
+            selected = mmr_select_candidates(
+                unique,
+                limit=max(0, self.config.target_candidates),
+                comparison_rows=active_rows,
+                diversity_lambda=self.config.private_lowcorr_mmr_lambda,
+                hard_similarity_cutoff=self.config.private_lowcorr_cutoff,
+                max_source_family_count=self.config.private_lowcorr_max_source_family_count,
+            )
+        else:
+            selected = unique[: max(0, self.config.target_candidates)]
+
+        for index, row in enumerate(selected, start=1):
+            row["candidate_rank"] = index
+
+        _write_jsonl(self.paths.candidate_pool, selected)
+        if self.config.community_skill_pipeline_enabled:
+            write_pipeline_manifest(
+                self.paths.output_dir,
+                region=self.config.region,
+                universe=self.config.universe,
+                delay=self.config.delay,
+                batch_size=self.config.community_batch_size,
+                strict_rule_of_eight=self.config.community_strict_rule_of_eight,
+            )
+            record_skill_event(
+                self.paths.output_dir,
+                stage="candidate_designer",
+                event="candidate_pool_selected",
+                payload={
+                    "input_candidates": len(unique),
+                    "selected_candidates": len(selected),
+                    "private_lowcorr_enabled": self.config.private_lowcorr_enabled,
+                    "mmr_lambda": self.config.private_lowcorr_mmr_lambda,
+                    "structural_cutoff": self.config.private_lowcorr_cutoff,
+                },
+            )
         return {
             "ok": True,
-            "candidates": len(unique),
+            "candidates": len(selected),
             "model": model_summary,
             "evolutionary": evolutionary_summary,
             "repair_candidates": len(repair_rows),
             "platform_candidates": len(platform_rows),
             "fallback_candidates": len(fallback_rows),
+            "pre_mmr_candidates": len(unique),
+            "private_lowcorr_mmr_applied": bool(self.config.private_lowcorr_enabled and len(unique) > self.config.target_candidates),
             "output": str(self.paths.candidate_pool),
             "raw_model_output": str(self.paths.model_candidates_raw),
         }
