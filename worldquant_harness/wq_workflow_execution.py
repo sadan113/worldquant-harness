@@ -239,6 +239,17 @@ class ReviewAgent:
         reviewed.sort(key=review_sort_key)
         _write_jsonl(self.paths.review_queue, reviewed)
         counts = Counter(row.get("triage_bucket") for row in reviewed)
+        if self.config.community_skill_pipeline_enabled:
+            record_skill_event(
+                self.paths.output_dir,
+                stage="critic_repair",
+                event="review_completed",
+                payload={
+                    "reviewed": len(reviewed),
+                    "triage_counts": dict(sorted(counts.items())),
+                    "pnl_enrichment": bool(self.config.enrich_pnl and not self.config.dry_run),
+                },
+            )
         return {
             "ok": True,
             "reviewed": len(reviewed),
