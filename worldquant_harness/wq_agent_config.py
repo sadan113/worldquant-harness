@@ -58,6 +58,10 @@ class WQAgentWorkflowConfig:
     max_consecutive_empty_cycles: int = 3
     max_consecutive_submit_failures: int = 5
     virtual_similarity_cutoff: float = 0.65
+    private_lowcorr_enabled: bool = True
+    private_lowcorr_cutoff: float = 0.60
+    private_lowcorr_mmr_lambda: float = 0.45
+    private_lowcorr_max_source_family_count: int = 2
     presubmit_self_correlation_cutoff: float | None = None
     presubmit_daily_return_correlation_cutoff: float | None = 0.70
     presubmit_daily_return_correlation_warn: float | None = 0.50
