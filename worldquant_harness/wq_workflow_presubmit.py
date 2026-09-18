@@ -15,6 +15,7 @@ from .wq_agent_records import workflow_settings as _settings
 from .wq_brain_service import submit_threshold_checks
 from .wq_efficiency import annotate_candidate_identity
 from .wq_forum_submission_optimizer import annotate_candidate_with_policy, evaluate_candidate_policy
+from .wq_lowcorr import fingerprint_expression, nearest_lowcorr_similarity
 from .wq_repair_screening import repair_candidate_concentration_risk
 from .wq_similarity import nearest_similarity
 from .wq_workflow_active import (
@@ -140,9 +141,21 @@ def _filter_candidate_pool_for_presubmit(
         if config is not None and expression:
             nearest = nearest_similarity(expression, active_rows)
             nearest_score = _score((nearest or {}).get("similarity", {}).get("overall_similarity"), default=0.0) if nearest else 0.0
+            lowcorr_nearest = nearest_lowcorr_similarity(expression, active_rows) if config.private_lowcorr_enabled else None
+            lowcorr_score = _score((lowcorr_nearest or {}).get("similarity", {}).get("overall_similarity"), default=0.0) if lowcorr_nearest else 0.0
             if nearest and nearest.get("exact"):
                 skipped.append({**row, "candidate_skip_reason": "exact_active_duplicate", "nearest_active": nearest})
                 skip_reasons["exact_active_duplicate"] += 1
+                continue
+            if config.private_lowcorr_enabled and lowcorr_score >= config.private_lowcorr_cutoff:
+                skipped.append({
+                    **row,
+                    "candidate_skip_reason": "private_lowcorr_structure_too_similar",
+                    "private_lowcorr_similarity": lowcorr_score,
+                    "private_lowcorr_nearest": lowcorr_nearest,
+                    "private_lowcorr_fingerprint": fingerprint_expression(expression),
+                })
+                skip_reasons["private_lowcorr_structure_too_similar"] += 1
                 continue
             if nearest_score > config.virtual_similarity_cutoff:
                 skipped.append({
@@ -270,6 +283,11 @@ def presubmit_acceptance_gate(
         _score((nearest or {}).get("similarity", {}).get("overall_similarity"), default=0.0)
         if nearest else 0.0
     )
+    lowcorr_nearest = nearest_lowcorr_similarity(expression, active_rows) if config.private_lowcorr_enabled else None
+    lowcorr_score = (
+        _score((lowcorr_nearest or {}).get("similarity", {}).get("overall_similarity"), default=0.0)
+        if lowcorr_nearest else 0.0
+    )
     family = _row_family(row)
     family_count = _active_family_counts(active_rows).get(family, 0) if family else 0
     field_signature = _field_signature(expression)
@@ -288,6 +306,11 @@ def presubmit_acceptance_gate(
         "nearest_active": nearest,
         "nearest_similarity": nearest_score,
         "virtual_similarity_cutoff": config.virtual_similarity_cutoff,
+        "private_lowcorr_enabled": config.private_lowcorr_enabled,
+        "private_lowcorr_cutoff": config.private_lowcorr_cutoff,
+        "private_lowcorr_similarity": lowcorr_score,
+        "private_lowcorr_nearest": lowcorr_nearest,
+        "private_lowcorr_fingerprint": fingerprint_expression(expression) if expression else {},
         "source_family": family,
         "source_family_count_before": family_count,
         "source_family_limit": config.max_virtual_family_count,
@@ -334,6 +357,8 @@ def presubmit_acceptance_gate(
         return False, "platform_checks_failed", gate
     if nearest and nearest.get("exact"):
         return False, "exact_active_duplicate", gate
+    if config.private_lowcorr_enabled and lowcorr_score >= config.private_lowcorr_cutoff:
+        return False, "private_lowcorr_structure_too_similar", gate
     if nearest_score > config.virtual_similarity_cutoff:
         return False, "too_similar_to_real_or_virtual_active", gate
     if config.max_virtual_family_count > 0 and family and family_count >= config.max_virtual_family_count:

@@ -78,6 +78,10 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-consecutive-empty-cycles", type=int, default=3)
     parser.add_argument("--max-consecutive-submit-failures", type=int, default=5)
     parser.add_argument("--virtual-similarity-cutoff", type=float, default=0.65)
+    parser.add_argument("--disable-private-lowcorr", action="store_true", help="Disable private structural low-correlation gate")
+    parser.add_argument("--private-lowcorr-cutoff", type=float, default=0.60, help="Reject candidates structurally too similar to active/virtual-active inventory")
+    parser.add_argument("--private-lowcorr-mmr-lambda", type=float, default=0.45, help="Diversity penalty used by private MMR batch selection")
+    parser.add_argument("--private-lowcorr-max-source-family-count", type=int, default=2)
     parser.add_argument(
         "--presubmit-self-correlation-cutoff",
         type=float,
@@ -153,6 +157,10 @@ def _config_from_args(args: argparse.Namespace) -> WQAgentWorkflowConfig:
         max_consecutive_empty_cycles=args.max_consecutive_empty_cycles,
         max_consecutive_submit_failures=args.max_consecutive_submit_failures,
         virtual_similarity_cutoff=args.virtual_similarity_cutoff,
+        private_lowcorr_enabled=not args.disable_private_lowcorr,
+        private_lowcorr_cutoff=args.private_lowcorr_cutoff,
+        private_lowcorr_mmr_lambda=args.private_lowcorr_mmr_lambda,
+        private_lowcorr_max_source_family_count=max(1, args.private_lowcorr_max_source_family_count),
         presubmit_self_correlation_cutoff=args.presubmit_self_correlation_cutoff,
         max_virtual_family_count=args.max_virtual_family_count,
         max_virtual_field_signature_count=args.max_virtual_field_signature_count,
