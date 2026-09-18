@@ -12,6 +12,7 @@ from .artifact_io import write_jsonl as _write_jsonl
 from .expression_parser import normalize_expression
 from .wq_agent_config import WorkflowPaths, WQAgentWorkflowConfig
 from .wq_agent_records import workflow_settings as _settings
+from .wq_community_skill_pipeline import record_skill_event, write_pipeline_manifest
 from .wq_workflow_active import _fields, _jaccard, _operators
 from .wq_workflow_constants import NEAR_MISS_REPAIR, ROOT
 from .wq_workflow_context import (
@@ -53,6 +54,25 @@ class CommunityScoutAgent:
                     "diagnosis": seed.diagnosis,
                 })
         _write_jsonl(self.paths.field_opportunities, rows)
+        if self.config.community_skill_pipeline_enabled:
+            write_pipeline_manifest(
+                self.paths.output_dir,
+                region=self.config.region,
+                universe=self.config.universe,
+                delay=self.config.delay,
+                batch_size=self.config.community_batch_size,
+                strict_rule_of_eight=self.config.community_strict_rule_of_eight,
+            )
+            record_skill_event(
+                self.paths.output_dir,
+                stage="knowledge_search",
+                event="community_evidence_scanned",
+                payload={
+                    "opportunities": len(rows),
+                    "community_context_dir": str(context.context_dir) if context else "",
+                    "community_skills": len(context.skills) if context else 0,
+                },
+            )
         return {
             "ok": True,
             "opportunities": len(rows),
@@ -106,6 +126,18 @@ class MemoryContextBuilder:
         _write_json(self.paths.memory_context, context)
         markdown = render_memory_context_markdown(context)
         self.paths.memory_context_markdown.write_text(markdown, encoding="utf-8")
+        if self.config.community_skill_pipeline_enabled:
+            record_skill_event(
+                self.paths.output_dir,
+                stage="research_recorder",
+                event="memory_context_persisted",
+                payload={
+                    "active": len(context["active"]),
+                    "ledger_failures": len(context["ledger_failures"]),
+                    "field_opportunities": len(context["field_opportunities"]),
+                    "community_skills": len(context["community_skills"]),
+                },
+            )
         return {
             "ok": True,
             "active": len(context["active"]),
